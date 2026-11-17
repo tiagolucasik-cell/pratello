@@ -19,28 +19,32 @@ export default function StaffManager() {
   const { users, saveUser, deleteUser, session } = useApp();
   const [form, setForm] = useState<FormState | null>(null);
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
   const [listError, setListError] = useState('');
 
   const myId = session?.type === 'staff' ? session.userId : '';
 
   const open = (u?: StaffUser) => {
     setError('');
-    setForm(u ? { ...u } : { name: '', role: 'funcionario', login: '', password: '' });
+    setForm(u ? { ...u, password: '' } : { name: '', role: 'funcionario', login: '', password: '' });
   };
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!form) return;
-    if (!form.name.trim() || !form.login.trim() || !form.password) return setError('Preencha todos os campos.');
-    const err = saveUser({ ...form, name: form.name.trim() });
+    if (!form.name.trim() || !form.login.trim()) return setError('Preencha nome e login.');
+    if (!form.id && form.password.length < 4) return setError('A senha deve ter pelo menos 4 caracteres.');
+    setSaving(true);
+    const err = await saveUser({ ...form, name: form.name.trim() });
+    setSaving(false);
     if (err) return setError(err);
     setForm(null);
   };
 
-  const remove = (u: StaffUser) => {
+  const remove = async (u: StaffUser) => {
     setListError('');
     if (!confirm(`Excluir o acesso de ${u.name}?`)) return;
-    const err = deleteUser(u.id);
+    const err = await deleteUser(u.id);
     if (err) setListError(err);
   };
 
@@ -106,15 +110,17 @@ export default function StaffManager() {
             <Field label="Login (usuário ou e-mail)">
               <Input value={form.login} onChange={(e) => set('login', e.target.value)} placeholder="nome@pratello.com" autoComplete="off" />
             </Field>
-            <Field label="Senha">
-              <Input value={form.password} onChange={(e) => set('password', e.target.value)} autoComplete="new-password" />
+            <Field label="Senha" hint={form.id ? 'Deixe em branco para manter a senha atual.' : 'Mínimo de 4 caracteres. Fica salva com criptografia (bcrypt).'}>
+              <Input type="password" value={form.password} onChange={(e) => set('password', e.target.value)} autoComplete="new-password" />
             </Field>
             {error && <p className="text-sm font-medium text-red-600">{error}</p>}
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setForm(null)}>
                 Cancelar
               </Button>
-              <Button type="submit">Salvar</Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Salvando…' : 'Salvar'}
+              </Button>
             </div>
           </form>
         )}

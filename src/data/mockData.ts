@@ -103,7 +103,8 @@ export const seedProducts: Product[] = seeds.map(({ photo, ...s }, i) => ({
 
 /* ---------- Equipe ---------- */
 
-export const seedUsers: StaffUser[] = [
+/** Usados apenas pela API para popular o banco (a senha é gravada com hash bcrypt). */
+export const seedUsers: (StaffUser & { password: string })[] = [
   { id: 'u1', name: 'Ana Administradora', role: 'admin', login: 'admin@pratello.com', password: '1234' },
   { id: 'u2', name: 'Carlos Cozinha', role: 'funcionario', login: 'cozinha@pratello.com', password: '1234' },
 ];

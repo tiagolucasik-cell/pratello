@@ -19,7 +19,8 @@ export default function Admin() {
   const { session, logout, resetDemoData } = useApp();
 
   const reset = () => {
-    if (confirm('Restaurar cardápio, pedidos e funcionários para os dados de demonstração?')) resetDemoData();
+    if (!confirm('Restaurar cardápio e pedidos para os dados de demonstração? Isso apaga os pedidos reais do banco.')) return;
+    resetDemoData().then((err) => err && alert(err));
   };
 
   return (

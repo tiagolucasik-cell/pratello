@@ -67,8 +67,8 @@ export default function OrderCard({ order, onAdvance, onMarkPaid }: Props) {
       )}
 
       <ul className="mt-3 space-y-1 border-t border-zinc-100 pt-3 text-sm">
-        {order.items.map((it) => (
-          <li key={it.productId} className="text-zinc-700">
+        {order.items.map((it, i) => (
+          <li key={i} className="text-zinc-700">
             <b className="text-zinc-900">{it.quantity}x</b> {it.name}
           </li>
         ))}

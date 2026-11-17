@@ -32,6 +32,7 @@ export default function Login() {
   const [location, setLocation] = useState<LocationDraft>(toDraft());
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const switchTab = (t: Tab) => {
@@ -49,10 +50,12 @@ export default function Login() {
     navigate('/cardapio');
   };
 
-  const submitStaff = (e: FormEvent) => {
+  const submitStaff = async (e: FormEvent) => {
     e.preventDefault();
-    const user = loginStaff(login, password);
-    if (!user) return setError('Usuário ou senha inválidos.');
+    setLoading(true);
+    const user = await loginStaff(login, password);
+    setLoading(false);
+    if (typeof user === 'string') return setError(user);
     navigate(user.role === 'admin' ? '/admin' : '/pedidos');
   };
 
@@ -144,8 +147,8 @@ export default function Login() {
                   <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••" autoComplete="current-password" />
                 </Field>
                 {error && <p className="text-sm font-medium text-red-600">{error}</p>}
-                <Button type="submit" size="lg" className="w-full">
-                  <LogIn size={18} /> Entrar
+                <Button type="submit" size="lg" className="w-full" disabled={loading}>
+                  <LogIn size={18} /> {loading ? 'Entrando…' : 'Entrar'}
                 </Button>
 
                 <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-4">

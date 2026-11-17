@@ -1,64 +1,47 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { DELIVERY_FEE, FREE_DELIVERY_FROM, categories, createSeedOrders, seedProducts, seedUsers, visualCategories } from '../data/mockData';
+import { DELIVERY_FEE, FREE_DELIVERY_FROM, categories, visualCategories } from '../data/mockData';
 import type { CartItem, Category, Order, Payment, Product, ServiceLocation, Session, StaffUser, VisualCategory } from '../types';
-import { STATUS_FLOW, uid } from '../utils/format';
+import { ApiError, OFFLINE_MESSAGE, api, errorMessage, setApiToken } from '../utils/api';
+import { uid } from '../utils/format';
 
-/* ---------- Persistência ---------- */
+/*
+ * Os dados (cardápio, pedidos, funcionários) ficam no PostgreSQL e são acessados pela API.
+ * No navegador ficam só o login e o carrinho, por aba (sessionStorage).
+ */
 
-// "v2": formato com vitrine, localização e pagamento. Mudar a versão recria os dados de exemplo.
-const KEYS = {
-  products: 'pratello:v2:products',
-  users: 'pratello:v2:users',
-  orders: 'pratello:v2:orders',
-  session: 'pratello:v2:session', // sessionStorage: cada aba tem seu próprio login (cliente numa aba, cozinha na outra)
-  cart: 'pratello:v2:cart',
-} as const;
+const KEYS = { session: 'pratello:v3:session', cart: 'pratello:v3:cart' } as const;
 
-function read<T>(storage: Storage, key: string): T | undefined {
-  try {
-    const raw = storage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : undefined;
-  } catch {
-    return undefined;
-  }
-}
+const POLL = { orders: 3000, myOrders: 4000, products: 10000 };
 
-function write(storage: Storage, key: string, value: unknown) {
-  try {
-    if (value === null || value === undefined) storage.removeItem(key);
-    else storage.setItem(key, JSON.stringify(value));
-  } catch {
-    /* armazenamento indisponível: segue apenas em memória */
-  }
-}
-
-/** Estado persistido no localStorage e sincronizado entre abas (evento `storage`). */
-function useSharedState<T>(key: string, initial: () => T) {
-  const [state, setState] = useState<T>(() => read<T>(localStorage, key) ?? initial());
-
-  useEffect(() => write(localStorage, key, state), [key, state]);
-
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key !== key) return;
-      setState(e.newValue ? (JSON.parse(e.newValue) as T) : initial());
-    };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
-
-  return [state, setState] as const;
-}
-
-/** Estado por aba (sessionStorage). */
 function useTabState<T>(key: string, initial: T) {
-  const [state, setState] = useState<T>(() => read<T>(sessionStorage, key) ?? initial);
-  useEffect(() => write(sessionStorage, key, state), [key, state]);
+  const [state, setState] = useState<T>(() => {
+    try {
+      const raw = sessionStorage.getItem(key);
+      return raw ? (JSON.parse(raw) as T) : initial;
+    } catch {
+      return initial;
+    }
+  });
+  useEffect(() => {
+    try {
+      if (state === null) sessionStorage.removeItem(key);
+      else sessionStorage.setItem(key, JSON.stringify(state));
+    } catch {
+      /* armazenamento indisponível */
+    }
+  }, [key, state]);
   return [state, setState] as const;
 }
 
-/* ---------- Contexto ---------- */
+/** Executa `fn` agora e a cada `ms` enquanto `enabled` for verdadeiro. */
+function usePolling(fn: () => Promise<void>, ms: number, enabled: boolean) {
+  useEffect(() => {
+    if (!enabled) return;
+    fn();
+    const id = setInterval(fn, ms);
+    return () => clearInterval(id);
+  }, [fn, ms, enabled]);
+}
 
 export interface CartLine {
   product: Product;
@@ -66,8 +49,11 @@ export interface CartLine {
 }
 
 export type ProductInput = Omit<Product, 'id'> & { id?: string };
-export type UserInput = Omit<StaffUser, 'id'> & { id?: string };
+export type UserInput = Omit<StaffUser, 'id'> & { id?: string; password: string };
 export type PaymentInput = Omit<Payment, 'status'> & { pixPaid?: boolean };
+
+/** Ações que podem falhar devolvem a mensagem de erro (ou null em caso de sucesso). */
+type Result = Promise<string | null>;
 
 interface AppContextValue {
   categories: Category[];
@@ -75,12 +61,13 @@ interface AppContextValue {
   products: Product[];
   users: StaffUser[];
   orders: Order[];
+  myOrders: Order[];
   session: Session | null;
-  currentUser: StaffUser | null;
+  connectionError: string | null;
 
   loginClient: (name: string, phone: string, location: ServiceLocation) => void;
   updateLocation: (location: ServiceLocation) => void;
-  loginStaff: (login: string, password: string) => StaffUser | null;
+  loginStaff: (login: string, password: string) => Promise<StaffUser | string>;
   logout: () => void;
 
   cartLines: CartLine[];
@@ -91,41 +78,96 @@ interface AppContextValue {
   addToCart: (productId: string, quantity?: number) => void;
   changeQuantity: (productId: string, delta: number) => void;
   removeFromCart: (productId: string) => void;
-  placeOrder: (notes: string, payment: PaymentInput) => Order | null;
+  placeOrder: (notes: string, payment: PaymentInput) => Promise<Order | string>;
 
-  advanceOrder: (orderId: string) => void;
-  markOrderPaid: (orderId: string) => void;
+  advanceOrder: (orderId: string) => Result;
+  markOrderPaid: (orderId: string) => Result;
 
-  saveProduct: (input: ProductInput) => void;
-  deleteProduct: (id: string) => void;
-  toggleProductAvailability: (id: string) => void;
+  saveProduct: (input: ProductInput) => Result;
+  deleteProduct: (id: string) => Result;
+  toggleProductAvailability: (id: string) => Result;
 
-  saveUser: (input: UserInput) => string | null;
-  deleteUser: (id: string) => string | null;
+  saveUser: (input: UserInput) => Result;
+  deleteUser: (id: string) => Result;
 
-  resetDemoData: () => void;
+  resetDemoData: () => Result;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [products, setProducts] = useSharedState<Product[]>(KEYS.products, () => seedProducts);
-  const [users, setUsers] = useSharedState<StaffUser[]>(KEYS.users, () => seedUsers);
-  const [orders, setOrders] = useSharedState<Order[]>(KEYS.orders, createSeedOrders);
   const [session, setSession] = useTabState<Session | null>(KEYS.session, null);
   const [cart, setCart] = useTabState<CartItem[]>(KEYS.cart, []);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [users, setUsers] = useState<StaffUser[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [myOrders, setMyOrders] = useState<Order[]>([]);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
-  const currentUser = useMemo(
-    () => (session?.type === 'staff' ? users.find((u) => u.id === session.userId) ?? null : null),
-    [session, users],
+  // o token precisa estar disponível já na primeira requisição desta renderização
+  setApiToken(session?.type === 'staff' ? session.token : null);
+
+  const isStaff = session?.type === 'staff';
+  const isAdmin = isStaff && session.role === 'admin';
+  const clientId = session?.type === 'cliente' ? session.clientId : null;
+
+  /** Envolve chamadas à API: marca a conexão, encerra sessão expirada e devolve erro amigável. */
+  const call = useCallback(
+    async <T,>(fn: () => Promise<T>): Promise<{ ok: true; data: T } | { ok: false; error: string }> => {
+      try {
+        const data = await fn();
+        setConnectionError(null);
+        return { ok: true, data };
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 0) setConnectionError(OFFLINE_MESSAGE);
+        if (e instanceof ApiError && e.status === 401 && session?.type === 'staff') setSession(null);
+        return { ok: false, error: errorMessage(e) };
+      }
+    },
+    [session, setSession],
   );
 
-  // Se o funcionário logado for excluído por um admin, encerra a sessão.
-  useEffect(() => {
-    if (session?.type === 'staff' && !currentUser) setSession(null);
-  }, [session, currentUser, setSession]);
+  /* ---------- Carregamento + atualização em tempo real (polling) ---------- */
 
-  /* Autenticação */
+  const loadProducts = useCallback(async () => {
+    const r = await call(() => api<Product[]>('/products'));
+    if (r.ok) setProducts(r.data);
+  }, [call]);
+
+  const loadOrders = useCallback(async () => {
+    const r = await call(() => api<Order[]>('/orders'));
+    if (r.ok) setOrders(r.data);
+  }, [call]);
+
+  const loadMyOrders = useCallback(async () => {
+    if (!clientId) return;
+    const r = await call(() => api<Order[]>(`/orders/client/${encodeURIComponent(clientId)}`));
+    if (r.ok) setMyOrders(r.data);
+  }, [call, clientId]);
+
+  const loadUsers = useCallback(async () => {
+    const r = await call(() => api<StaffUser[]>('/users'));
+    if (r.ok) setUsers(r.data);
+  }, [call]);
+
+  usePolling(loadProducts, POLL.products, !!session);
+  usePolling(loadOrders, POLL.orders, isStaff);
+  usePolling(loadMyOrders, POLL.myOrders, !!clientId);
+  useEffect(() => {
+    if (isAdmin) loadUsers();
+  }, [isAdmin, loadUsers]);
+
+  // limpa dados sensíveis ao sair
+  useEffect(() => {
+    if (!isStaff) {
+      setOrders([]);
+      setUsers([]);
+    }
+    if (!clientId) setMyOrders([]);
+  }, [isStaff, clientId]);
+
+  /* ---------- Autenticação ---------- */
+
   const loginClient = useCallback(
     (name: string, phone: string, location: ServiceLocation) => {
       setSession({ type: 'cliente', clientId: uid('c'), name: name.trim(), phone: phone.trim(), location });
@@ -140,12 +182,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const loginStaff = useCallback(
-    (login: string, password: string) => {
-      const user = users.find((u) => u.login.toLowerCase() === login.trim().toLowerCase() && u.password === password);
-      if (user) setSession({ type: 'staff', userId: user.id, name: user.name, role: user.role });
-      return user ?? null;
+    async (login: string, password: string) => {
+      const r = await call(() => api<{ token: string; user: StaffUser }>('/auth/login', { method: 'POST', body: { login, password } }));
+      if (!r.ok) return r.error;
+      const { token, user } = r.data;
+      setApiToken(token);
+      setSession({ type: 'staff', userId: user.id, name: user.name, role: user.role, token });
+      return user;
     },
-    [users, setSession],
+    [call, setSession],
   );
 
   const logout = useCallback(() => {
@@ -153,7 +198,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCart([]);
   }, [setSession, setCart]);
 
-  /* Carrinho — reflete preço/disponibilidade atuais do cardápio */
+  /* ---------- Carrinho (local) ---------- */
+
   const cartLines = useMemo<CartLine[]>(
     () =>
       cart.flatMap((ci) => {
@@ -181,9 +227,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const changeQuantity = useCallback(
     (productId: string, delta: number) =>
       setCart((prev) =>
-        prev
-          .map((c) => (c.productId === productId ? { ...c, quantity: c.quantity + delta } : c))
-          .filter((c) => c.quantity > 0),
+        prev.map((c) => (c.productId === productId ? { ...c, quantity: c.quantity + delta } : c)).filter((c) => c.quantity > 0),
       ),
     [setCart],
   );
@@ -194,125 +238,113 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const placeOrder = useCallback(
-    (notes: string, { pixPaid, ...payment }: PaymentInput) => {
-      if (session?.type !== 'cliente' || cartLines.length === 0) return null;
-      const now = Date.now();
-      const order: Order = {
-        id: uid('o'),
-        number: orders.reduce((max, o) => Math.max(max, o.number), 100) + 1,
-        clientId: session.clientId,
-        customerName: session.name,
-        phone: session.phone,
-        location: session.location,
-        items: cartLines.map(({ product, quantity }) => ({
-          productId: product.id,
-          name: product.name,
-          price: product.price,
-          quantity,
-        })),
-        notes: notes.trim(),
-        subtotal,
-        deliveryFee,
-        total: cartTotal,
-        payment: { ...payment, status: payment.method === 'pix' && pixPaid ? 'pago' : 'pendente' },
-        status: 'pendente',
-        createdAt: now,
-        updatedAt: now,
-      };
-      setOrders((prev) => [...prev, order]);
-      setCart([]);
-      return order;
-    },
-    [session, cartLines, subtotal, deliveryFee, cartTotal, orders, setOrders, setCart],
-  );
-
-  /* Pedidos */
-  const advanceOrder = useCallback(
-    (orderId: string) =>
-      setOrders((prev) =>
-        prev.map((o) => {
-          if (o.id !== orderId) return o;
-          const next = STATUS_FLOW[STATUS_FLOW.indexOf(o.status) + 1];
-          return next ? { ...o, status: next, updatedAt: Date.now() } : o;
+    async (notes: string, payment: PaymentInput) => {
+      if (session?.type !== 'cliente' || cartLines.length === 0) return 'Carrinho vazio.';
+      const r = await call(() =>
+        api<Order>('/orders', {
+          method: 'POST',
+          body: {
+            clientId: session.clientId,
+            customerName: session.name,
+            phone: session.phone,
+            location: session.location,
+            items: cartLines.map((l) => ({ productId: l.product.id, quantity: l.quantity })),
+            notes,
+            payment,
+          },
         }),
-      ),
-    [setOrders],
+      );
+      if (!r.ok) {
+        loadProducts(); // ex.: um prato ficou indisponível
+        return r.error;
+      }
+      setCart([]);
+      setMyOrders((prev) => [...prev, r.data]);
+      return r.data;
+    },
+    [session, cartLines, call, setCart, loadProducts],
   );
 
-  const markOrderPaid = useCallback(
-    (orderId: string) =>
-      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, payment: { ...o.payment, status: 'pago' } } : o))),
-    [setOrders],
+  /* ---------- Pedidos (equipe) ---------- */
+
+  const mutateOrder = useCallback(
+    async (path: string) => {
+      const r = await call(() => api<Order>(path, { method: 'PATCH' }));
+      if (!r.ok) return r.error;
+      setOrders((prev) => prev.map((o) => (o.id === r.data.id ? r.data : o)));
+      return null;
+    },
+    [call],
   );
 
-  /* Cardápio */
+  const advanceOrder = useCallback((id: string) => mutateOrder(`/orders/${id}/advance`), [mutateOrder]);
+  const markOrderPaid = useCallback((id: string) => mutateOrder(`/orders/${id}/pay`), [mutateOrder]);
+
+  /* ---------- Cardápio (admin) ---------- */
+
   const saveProduct = useCallback(
-    (input: ProductInput) =>
-      setProducts((prev) =>
-        input.id
-          ? prev.map((p) => (p.id === input.id ? ({ ...input, id: p.id } as Product) : p))
-          : [...prev, { ...input, id: uid('p') }],
-      ),
-    [setProducts],
+    async ({ id, ...input }: ProductInput) => {
+      const r = await call(() => api<Product>(id ? `/products/${id}` : '/products', { method: id ? 'PUT' : 'POST', body: input }));
+      if (!r.ok) return r.error;
+      setProducts((prev) => (id ? prev.map((p) => (p.id === id ? r.data : p)) : [...prev, r.data]));
+      return null;
+    },
+    [call],
   );
 
   const deleteProduct = useCallback(
-    (id: string) => setProducts((prev) => prev.filter((p) => p.id !== id)),
-    [setProducts],
+    async (id: string) => {
+      const r = await call(() => api<void>(`/products/${id}`, { method: 'DELETE' }));
+      if (!r.ok) return r.error;
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+      return null;
+    },
+    [call],
   );
 
   const toggleProductAvailability = useCallback(
-    (id: string) => setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, available: !p.available } : p))),
-    [setProducts],
-  );
-
-  /* Funcionários */
-  const saveUser = useCallback(
-    (input: UserInput) => {
-      const login = input.login.trim().toLowerCase();
-      if (users.some((u) => u.login.toLowerCase() === login && u.id !== input.id)) {
-        return 'Já existe um funcionário com esse login.';
+    async (id: string) => {
+      setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, available: !p.available } : p))); // otimista
+      const r = await call(() => api<Product>(`/products/${id}/availability`, { method: 'PATCH' }));
+      if (!r.ok) {
+        loadProducts();
+        return r.error;
       }
-      if (input.id) {
-        const target = users.find((u) => u.id === input.id);
-        const admins = users.filter((u) => u.role === 'admin');
-        if (target?.role === 'admin' && input.role !== 'admin' && admins.length === 1) {
-          return 'É necessário manter pelo menos um administrador.';
-        }
-        setUsers((prev) => prev.map((u) => (u.id === input.id ? ({ ...input, login, id: u.id } as StaffUser) : u)));
-        if (session?.type === 'staff' && session.userId === input.id) {
-          setSession({ ...session, name: input.name, role: input.role });
-        }
-      } else {
-        setUsers((prev) => [...prev, { ...input, login, id: uid('u') }]);
-      }
+      setProducts((prev) => prev.map((p) => (p.id === id ? r.data : p)));
       return null;
     },
-    [users, setUsers, session, setSession],
+    [call, loadProducts],
+  );
+
+  /* ---------- Funcionários (admin) ---------- */
+
+  const saveUser = useCallback(
+    async ({ id, ...input }: UserInput) => {
+      const r = await call(() => api<StaffUser>(id ? `/users/${id}` : '/users', { method: id ? 'PUT' : 'POST', body: input }));
+      if (!r.ok) return r.error;
+      setUsers((prev) => (id ? prev.map((u) => (u.id === id ? r.data : u)) : [...prev, r.data]));
+      if (session?.type === 'staff' && session.userId === r.data.id) setSession({ ...session, name: r.data.name, role: r.data.role });
+      return null;
+    },
+    [call, session, setSession],
   );
 
   const deleteUser = useCallback(
-    (id: string) => {
-      if (session?.type === 'staff' && session.userId === id) return 'Você não pode excluir o próprio usuário.';
-      const target = users.find((u) => u.id === id);
-      if (target?.role === 'admin' && users.filter((u) => u.role === 'admin').length === 1) {
-        return 'É necessário manter pelo menos um administrador.';
-      }
+    async (id: string) => {
+      const r = await call(() => api<void>(`/users/${id}`, { method: 'DELETE' }));
+      if (!r.ok) return r.error;
       setUsers((prev) => prev.filter((u) => u.id !== id));
       return null;
     },
-    [session, users, setUsers],
+    [call],
   );
 
-  const resetDemoData = useCallback(() => {
-    setProducts(seedProducts);
-    setOrders(createSeedOrders());
-    setUsers((prev) => {
-      // mantém o usuário atual para não derrubar a sessão
-      const me = session?.type === 'staff' ? prev.find((u) => u.id === session.userId) : undefined;
-      return me && !seedUsers.some((u) => u.id === me.id) ? [...seedUsers, me] : seedUsers;
-    });
-  }, [setProducts, setOrders, setUsers, session]);
+  const resetDemoData = useCallback(async () => {
+    const r = await call(() => api('/admin/reset', { method: 'POST' }));
+    if (!r.ok) return r.error;
+    await Promise.all([loadProducts(), loadOrders(), loadUsers()]);
+    return null;
+  }, [call, loadProducts, loadOrders, loadUsers]);
 
   const value: AppContextValue = {
     categories,
@@ -320,8 +352,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     products,
     users,
     orders,
+    myOrders,
     session,
-    currentUser,
+    connectionError,
     loginClient,
     updateLocation,
     loginStaff,
