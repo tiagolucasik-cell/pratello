@@ -20,20 +20,22 @@ export default function Cart({ onClose, onOrderPlaced, onChangeLocation, myOrder
   const [notes, setNotes] = useState('');
   const [payment, setPayment] = useState<PaymentDraft>(emptyPayment);
   const [error, setError] = useState('');
+  const [sending, setSending] = useState(false);
 
   const location = session?.type === 'cliente' ? session.location : null;
   const isDelivery = location?.mode === 'delivery';
 
-  const finish = () => {
+  const finish = async () => {
     const parsed = draftToPayment(payment, cartTotal);
     if (typeof parsed === 'string') return setError(parsed);
-    const order = placeOrder(notes, parsed);
-    if (order) {
-      setNotes('');
-      setPayment(emptyPayment);
-      setError('');
-      onOrderPlaced(order);
-    }
+    setSending(true);
+    const order = await placeOrder(notes, parsed);
+    setSending(false);
+    if (typeof order === 'string') return setError(order);
+    setNotes('');
+    setPayment(emptyPayment);
+    setError('');
+    onOrderPlaced(order);
   };
 
   const activeOrders = myOrders.filter((o) => o.status !== 'entregue').slice(-3).reverse();
@@ -161,8 +163,8 @@ export default function Cart({ onClose, onOrderPlaced, onChangeLocation, myOrder
           <span>{formatPrice(cartTotal)}</span>
         </div>
         {error && <p className="text-sm font-medium text-red-600">{error}</p>}
-        <Button size="lg" className="w-full justify-between" disabled={cartLines.length === 0} onClick={finish}>
-          <span>Finalizar Pedido</span>
+        <Button size="lg" className="w-full justify-between" disabled={cartLines.length === 0 || sending} onClick={finish}>
+          <span>{sending ? 'Enviando…' : 'Finalizar Pedido'}</span>
           <span>{formatPrice(cartTotal)}</span>
         </Button>
       </div>

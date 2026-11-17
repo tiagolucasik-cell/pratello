@@ -1,3 +1,4 @@
+import { WifiOff } from 'lucide-react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useApp } from './context/AppContext';
@@ -11,10 +12,16 @@ import Orders from './pages/Orders';
 import { homeFor } from './utils/routes';
 
 export default function App() {
-  const { session } = useApp();
+  const { session, connectionError } = useApp();
 
   return (
-    <Routes>
+    <>
+      {connectionError && (
+        <div role="alert" className="fixed inset-x-0 top-0 z-[60] flex items-center justify-center gap-2 bg-red-600 px-4 py-2 text-center text-sm font-medium text-white">
+          <WifiOff size={16} className="shrink-0" /> {connectionError}
+        </div>
+      )}
+      <Routes>
       <Route path="/" element={session ? <Navigate to={homeFor(session)} replace /> : <Login />} />
       <Route
         path="/cardapio"
@@ -45,6 +52,7 @@ export default function App() {
         <Route path="funcionarios" element={<StaffManager />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+      </Routes>
+    </>
   );
 }

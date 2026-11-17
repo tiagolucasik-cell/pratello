@@ -18,7 +18,7 @@ type Chip = 'todos' | 'populares' | CategoryId;
 const normalize = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 export default function Menu() {
-  const { products, categories, visualCategories, session, logout, addToCart, updateLocation, cartLines, cartCount, cartTotal, orders } = useApp();
+  const { products, categories, visualCategories, session, logout, addToCart, updateLocation, cartLines, cartCount, cartTotal, myOrders } = useApp();
   const [chip, setChip] = useState<Chip>('todos');
   const [tag, setTag] = useState<TagId | null>(null);
   const [query, setQuery] = useState('');
@@ -64,8 +64,6 @@ export default function Menu() {
         .sort((a, b) => Number(b.popular) - Number(a.popular)),
     [available],
   );
-
-  const myOrders = useMemo(() => (client ? orders.filter((o) => o.clientId === client.clientId) : []), [orders, client]);
 
   const qtyInCart = (id: string) => cartLines.find((l) => l.product.id === id)?.quantity ?? 0;
 

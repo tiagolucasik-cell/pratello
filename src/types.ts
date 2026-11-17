@@ -55,7 +55,6 @@ export interface StaffUser {
   name: string;
   role: Role;
   login: string;
-  password: string;
 }
 
 export interface Address {
@@ -112,4 +111,4 @@ export interface CartItem {
 
 export type Session =
   | { type: 'cliente'; clientId: string; name: string; phone: string; location: ServiceLocation }
-  | { type: 'staff'; userId: string; name: string; role: Role };
+  | { type: 'staff'; userId: string; name: string; role: Role; token: string };

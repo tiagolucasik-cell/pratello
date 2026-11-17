@@ -50,6 +50,8 @@ export default function MenuManager() {
   const { products, categories, visualCategories, saveProduct, deleteProduct, toggleProductAvailability } = useApp();
   const [form, setForm] = useState<FormState | null>(null);
   const [error, setError] = useState('');
+  const [listError, setListError] = useState('');
+  const [saving, setSaving] = useState(false);
   const [query, setQuery] = useState('');
   const [cat, setCat] = useState<'todas' | CategoryId>('todas');
 
@@ -68,7 +70,7 @@ export default function MenuManager() {
     setForm(p ? toForm(p) : { ...emptyForm });
   };
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!form) return;
     const price = parsePrice(form.price);
@@ -96,12 +98,17 @@ export default function MenuManager() {
       available: form.available,
       popular: form.popular,
     };
-    saveProduct(input);
+    setSaving(true);
+    const err = await saveProduct(input);
+    setSaving(false);
+    if (err) return setError(err);
     setForm(null);
   };
 
   const remove = (p: Product) => {
-    if (confirm(`Excluir "${p.name}" do cardápio?`)) deleteProduct(p.id);
+    if (!confirm(`Excluir "${p.name}" do cardápio?`)) return;
+    setListError('');
+    deleteProduct(p.id).then((err) => err && setListError(err));
   };
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => (f ? { ...f, [k]: v } : f));
@@ -135,6 +142,8 @@ export default function MenuManager() {
         </Select>
       </div>
 
+      {listError && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-medium text-red-600">{listError}</p>}
+
       <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
         {list.length === 0 && <p className="p-8 text-center text-sm text-zinc-500">Nenhum prato encontrado.</p>}
         <ul className="divide-y divide-zinc-100">
@@ -158,7 +167,7 @@ export default function MenuManager() {
                   <button
                     role="switch"
                     aria-checked={p.available}
-                    onClick={() => toggleProductAvailability(p.id)}
+                    onClick={() => toggleProductAvailability(p.id).then((err) => err && setListError(err))}
                     className={`relative h-6 w-11 rounded-full transition-colors ${p.available ? 'bg-yellow-400' : 'bg-zinc-300'}`}
                   >
                     <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${p.available ? 'left-5.5' : 'left-0.5'}`} />
@@ -254,7 +263,9 @@ export default function MenuManager() {
               <Button type="button" variant="outline" onClick={() => setForm(null)}>
                 Cancelar
               </Button>
-              <Button type="submit">Salvar</Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Salvando…' : 'Salvar'}
+              </Button>
             </div>
           </form>
         )}
