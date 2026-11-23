@@ -46,7 +46,8 @@ export const PAYMENT_LABEL = { cartao: 'Cartão', pix: 'Pix', dinheiro: 'Dinheir
 export function formatPayment(p: Payment): string {
   if (p.method === 'cartao') {
     const type = p.cardType === 'debito' ? 'Débito' : 'Crédito';
-    return `Cartão de ${type}${p.needsMachine ? ' · levar maquininha' : ''}`;
+    const parcelas = p.cardType !== 'debito' && p.installments && p.installments > 1 ? ` ${p.installments}x` : '';
+    return `Cartão de ${type}${parcelas}${p.needsMachine ? ' · levar maquininha' : ''}`;
   }
   if (p.method === 'dinheiro') return p.changeFor ? `Dinheiro · troco para ${formatPrice(p.changeFor)}` : 'Dinheiro · sem troco';
   return 'Pix';

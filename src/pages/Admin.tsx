@@ -1,4 +1,4 @@
-import { ClipboardList, LayoutDashboard, LogOut, RotateCcw, Users, UtensilsCrossed } from 'lucide-react';
+import { ClipboardList, LayoutDashboard, LogOut, RotateCcw, Settings, Users, UtensilsCrossed } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
 import Logo from '../components/Logo';
 import { useApp } from '../context/AppContext';
@@ -7,6 +7,7 @@ const NAV = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/admin/cardapio', label: 'Gerenciar Cardápio', icon: UtensilsCrossed, end: false },
   { to: '/admin/funcionarios', label: 'Funcionários', icon: Users, end: false },
+  { to: '/admin/configuracoes', label: 'Configurações', icon: Settings, end: false },
   { to: '/pedidos', label: 'Painel de Pedidos', icon: ClipboardList, end: false },
 ];
 

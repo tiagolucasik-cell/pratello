@@ -37,15 +37,16 @@ const maskCep = (v: string) => {
 
 const tables = Array.from({ length: TABLE_COUNT }, (_, i) => String(i + 1).padStart(2, '0'));
 
-export default function LocationForm({ value, onChange }: { value: LocationDraft; onChange: (d: LocationDraft) => void }) {
+/** Campos de endereço com busca automática de rua e bairro pelo CEP (ViaCEP). */
+export function AddressFields({ value, onChange }: { value: Address; onChange: (a: Address) => void }) {
   const [cepStatus, setCepStatus] = useState<'idle' | 'loading' | 'error'>('idle');
-  const setAddr = (patch: Partial<Address>) => onChange({ ...value, address: { ...value.address, ...patch } });
+  const setAddr = (patch: Partial<Address>) => onChange({ ...value, ...patch });
 
-  // Preenche rua e bairro pelo CEP (ViaCEP). Sem internet, o cliente digita manualmente.
-  const cepDigits = value.address.cep.replace(/\D/g, '');
+  // Sem internet, o cliente digita manualmente.
+  const cepDigits = value.cep.replace(/\D/g, '');
   const lastLookup = useRef(cepDigits); // não sobrescreve um endereço já salvo ao abrir o formulário
   useEffect(() => {
-    if (value.mode !== 'delivery' || cepDigits.length !== 8) return setCepStatus('idle');
+    if (cepDigits.length !== 8) return setCepStatus('idle');
     if (cepDigits === lastLookup.current) return;
     lastLookup.current = cepDigits;
     const ctrl = new AbortController();
@@ -55,18 +56,65 @@ export default function LocationForm({ value, onChange }: { value: LocationDraft
       .then((data: { erro?: boolean; logradouro?: string; bairro?: string }) => {
         if (data.erro) return setCepStatus('error');
         setCepStatus('idle');
-        onChange({
-          ...value,
-          address: { ...value.address, street: data.logradouro || value.address.street, district: data.bairro || value.address.district },
-        });
+        onChange({ ...value, street: data.logradouro || value.street, district: data.bairro || value.district });
       })
       .catch((e: unknown) => {
         if ((e as Error).name !== 'AbortError') setCepStatus('idle');
       });
     return () => ctrl.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cepDigits, value.mode]);
+  }, [cepDigits]);
 
+  return (
+    <div className="grid grid-cols-6 gap-3">
+      <div className="col-span-3">
+        <Field label="CEP" hint={cepStatus === 'error' ? 'CEP não encontrado.' : undefined}>
+          <div className="relative">
+            <Input inputMode="numeric" value={value.cep} onChange={(e) => setAddr({ cep: maskCep(e.target.value) })} placeholder="00000-000" />
+            {cepStatus === 'loading' && <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-zinc-400" />}
+          </div>
+        </Field>
+      </div>
+      <div className="col-span-3">
+        <Field label="Número">
+          <Input value={value.number} onChange={(e) => setAddr({ number: e.target.value })} placeholder="123" />
+        </Field>
+      </div>
+      <div className="col-span-6">
+        <Field label="Rua">
+          <Input value={value.street} onChange={(e) => setAddr({ street: e.target.value })} placeholder="Rua das Flores" />
+        </Field>
+      </div>
+      <div className="col-span-6 sm:col-span-3">
+        <Field label="Bairro">
+          <Input value={value.district} onChange={(e) => setAddr({ district: e.target.value })} />
+        </Field>
+      </div>
+      <div className="col-span-6 sm:col-span-3">
+        <Field label="Complemento">
+          <Input value={value.complement} onChange={(e) => setAddr({ complement: e.target.value })} placeholder="Apto, bloco…" />
+        </Field>
+      </div>
+    </div>
+  );
+}
+
+export function TableSelect({ value, onChange }: { value: string; onChange: (table: string) => void }) {
+  return (
+    <Field label="Número da mesa">
+      <Select value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">Selecione a mesa…</option>
+        {tables.map((t) => (
+          <option key={t} value={t}>
+            Mesa {t}
+          </option>
+        ))}
+      </Select>
+    </Field>
+  );
+}
+
+export default function LocationForm({ value, onChange }: { value: LocationDraft; onChange: (d: LocationDraft) => void }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-2">
@@ -91,47 +139,9 @@ export default function LocationForm({ value, onChange }: { value: LocationDraft
       </div>
 
       {value.mode === 'mesa' ? (
-        <Field label="Número da mesa">
-          <Select value={value.table} onChange={(e) => onChange({ ...value, table: e.target.value })}>
-            <option value="">Selecione a mesa…</option>
-            {tables.map((t) => (
-              <option key={t} value={t}>
-                Mesa {t}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        <TableSelect value={value.table} onChange={(table) => onChange({ ...value, table })} />
       ) : (
-        <div className="grid grid-cols-6 gap-3">
-          <div className="col-span-3">
-            <Field label="CEP" hint={cepStatus === 'error' ? 'CEP não encontrado.' : undefined}>
-              <div className="relative">
-                <Input inputMode="numeric" value={value.address.cep} onChange={(e) => setAddr({ cep: maskCep(e.target.value) })} placeholder="00000-000" />
-                {cepStatus === 'loading' && <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-zinc-400" />}
-              </div>
-            </Field>
-          </div>
-          <div className="col-span-3">
-            <Field label="Número">
-              <Input value={value.address.number} onChange={(e) => setAddr({ number: e.target.value })} placeholder="123" />
-            </Field>
-          </div>
-          <div className="col-span-6">
-            <Field label="Rua">
-              <Input value={value.address.street} onChange={(e) => setAddr({ street: e.target.value })} placeholder="Rua das Flores" />
-            </Field>
-          </div>
-          <div className="col-span-6 sm:col-span-3">
-            <Field label="Bairro">
-              <Input value={value.address.district} onChange={(e) => setAddr({ district: e.target.value })} />
-            </Field>
-          </div>
-          <div className="col-span-6 sm:col-span-3">
-            <Field label="Complemento">
-              <Input value={value.address.complement} onChange={(e) => setAddr({ complement: e.target.value })} placeholder="Apto, bloco…" />
-            </Field>
-          </div>
-        </div>
+        <AddressFields value={value.address} onChange={(address) => onChange({ ...value, address })} />
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { DELIVERY_FEE, FREE_DELIVERY_FROM, categories, createSeedOrders, seedProducts, seedUsers, visualCategories } from '../data/mockData';
-import type { CartItem, Category, Order, Payment, Product, ServiceLocation, Session, StaffUser, VisualCategory } from '../types';
+import type { CartItem, Category, Order, OrderChannel, Payment, Product, ServiceLocation, Session, ShippingId, StaffUser, VisualCategory } from '../types';
+import { computeCheckout, type CheckoutSummary } from '../utils/checkout';
 import { STATUS_FLOW, uid } from '../utils/format';
 
 /* ---------- Persistência ---------- */
@@ -69,6 +70,17 @@ export type ProductInput = Omit<Product, 'id'> & { id?: string };
 export type UserInput = Omit<StaffUser, 'id'> & { id?: string };
 export type PaymentInput = Omit<Payment, 'status'> & { pixPaid?: boolean };
 
+/** Tudo que a tela de pagamento coleta. Os valores (frete, descontos, total) são recalculados aqui. */
+export interface CheckoutDetails {
+  location: ServiceLocation;
+  channel: OrderChannel;
+  phone: string;
+  notes: string;
+  payment: PaymentInput;
+  shipping: ShippingId;
+  couponCodes: string[];
+}
+
 interface AppContextValue {
   categories: Category[];
   visualCategories: VisualCategory[];
@@ -91,7 +103,7 @@ interface AppContextValue {
   addToCart: (productId: string, quantity?: number) => void;
   changeQuantity: (productId: string, delta: number) => void;
   removeFromCart: (productId: string) => void;
-  placeOrder: (notes: string, payment: PaymentInput) => Order | null;
+  placeOrder: (details: CheckoutDetails) => Order | null;
 
   advanceOrder: (orderId: string) => void;
   markOrderPaid: (orderId: string) => void;
@@ -163,7 +175,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [cart, products],
   );
   const cartCount = cartLines.reduce((s, l) => s + l.quantity, 0);
-  const subtotal = cartLines.reduce((s, l) => s + l.quantity * l.product.price, 0);
+  const subtotal = Math.round(cartLines.reduce((s, l) => s + l.quantity * l.product.price, 0) * 100) / 100;
   const isDelivery = session?.type === 'cliente' && session.location.mode === 'delivery';
   const deliveryFee = isDelivery && subtotal > 0 && subtotal < FREE_DELIVERY_FROM ? DELIVERY_FEE : 0;
   const cartTotal = subtotal + deliveryFee;
@@ -194,16 +206,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const placeOrder = useCallback(
-    (notes: string, { pixPaid, ...payment }: PaymentInput) => {
+    ({ location, channel, phone, notes, payment: { pixPaid, ...payment }, shipping, couponCodes }: CheckoutDetails) => {
       if (session?.type !== 'cliente' || cartLines.length === 0) return null;
+      const summary: CheckoutSummary = computeCheckout({
+        subtotal,
+        mode: channel === 'whatsapp' ? 'whatsapp' : location.mode,
+        payment: payment.method,
+        cep: location.mode === 'delivery' ? location.address.cep : '',
+        shipping,
+        couponCodes,
+      });
       const now = Date.now();
       const order: Order = {
         id: uid('o'),
         number: orders.reduce((max, o) => Math.max(max, o.number), 100) + 1,
         clientId: session.clientId,
         customerName: session.name,
-        phone: session.phone,
-        location: session.location,
+        phone: phone.trim(),
+        location,
         items: cartLines.map(({ product, quantity }) => ({
           productId: product.id,
           name: product.name,
@@ -212,18 +232,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
         })),
         notes: notes.trim(),
         subtotal,
-        deliveryFee,
-        total: cartTotal,
+        deliveryFee: Math.round((summary.shippingFee - summary.shippingDiscount) * 100) / 100,
+        discount: summary.discount,
+        coupons: summary.applied.map((c) => c.code),
+        channel,
+        shipping: location.mode === 'delivery' ? shipping : undefined,
+        total: summary.total,
         payment: { ...payment, status: payment.method === 'pix' && pixPaid ? 'pago' : 'pendente' },
         status: 'pendente',
         createdAt: now,
         updatedAt: now,
       };
       setOrders((prev) => [...prev, order]);
+      setSession({ ...session, location, phone: phone.trim() || session.phone });
       setCart([]);
       return order;
     },
-    [session, cartLines, subtotal, deliveryFee, cartTotal, orders, setOrders, setCart],
+    [session, cartLines, subtotal, orders, setOrders, setCart, setSession],
   );
 
   /* Pedidos */

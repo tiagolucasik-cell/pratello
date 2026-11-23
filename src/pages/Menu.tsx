@@ -1,5 +1,6 @@
 import { Armchair, Bike, CheckCircle2, ChevronDown, LogOut, Search, ShoppingBag, Sparkles, User, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Cart from '../components/Cart';
 import CategoryCarousel from '../components/CategoryCarousel';
 import FeaturedSection from '../components/FeaturedSection';
@@ -18,7 +19,7 @@ type Chip = 'todos' | 'populares' | CategoryId;
 const normalize = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 export default function Menu() {
-  const { products, categories, visualCategories, session, logout, addToCart, updateLocation, cartLines, cartCount, cartTotal, orders } = useApp();
+  const { products, categories, visualCategories, session, logout, addToCart, updateLocation, cartLines, cartCount, subtotal, orders } = useApp();
   const [chip, setChip] = useState<Chip>('todos');
   const [tag, setTag] = useState<TagId | null>(null);
   const [query, setQuery] = useState('');
@@ -82,10 +83,16 @@ export default function Menu() {
     setQuery('');
   };
 
-  const handleOrderPlaced = (order: Order) => {
-    setToast(order);
-    setCartOpen(false);
-  };
+  // Pedido feito na tela de pagamento: mostra a confirmação uma vez e limpa o estado da navegação.
+  const routerLocation = useLocation();
+  const navigate = useNavigate();
+  const placedOrderId = (routerLocation.state as { placedOrderId?: string } | null)?.placedOrderId;
+  useEffect(() => {
+    if (!placedOrderId) return;
+    const placed = orders.find((o) => o.id === placedOrderId);
+    if (placed) setToast(placed);
+    navigate('.', { replace: true, state: null });
+  }, [placedOrderId, orders, navigate]);
 
   const openLocation = () => {
     setLocationError('');
@@ -243,7 +250,7 @@ export default function Menu() {
         {/* Carrinho fixo (desktop) */}
         <aside className="hidden lg:block">
           <div className="sticky top-24 h-[calc(100vh-7rem)] overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-            <Cart onOrderPlaced={handleOrderPlaced} onChangeLocation={openLocation} myOrders={myOrders} />
+            <Cart onChangeLocation={openLocation} myOrders={myOrders} />
           </div>
         </aside>
       </div>
@@ -258,7 +265,7 @@ export default function Menu() {
             <ShoppingBag size={18} /> Ver pedido
             {cartCount > 0 && <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-xs text-white">{cartCount}</span>}
           </span>
-          <span>{formatPrice(cartTotal)}</span>
+          <span>{formatPrice(subtotal)}</span>
         </button>
       </div>
 
@@ -267,7 +274,7 @@ export default function Menu() {
         <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setCartOpen(false)}>
           <div className="absolute inset-0 bg-zinc-900/60" />
           <div className="absolute inset-y-0 right-0 w-full max-w-md bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <Cart onClose={() => setCartOpen(false)} onOrderPlaced={handleOrderPlaced} onChangeLocation={openLocation} myOrders={myOrders} />
+            <Cart onClose={() => setCartOpen(false)} onChangeLocation={openLocation} myOrders={myOrders} />
           </div>
         </div>
       )}

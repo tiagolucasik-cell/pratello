@@ -75,8 +75,15 @@ export interface Payment {
   cardType?: 'credito' | 'debito';
   needsMachine?: boolean;
   changeFor?: number;
+  /** Parcelas no crédito (1 = à vista). */
+  installments?: number;
   status: 'pendente' | 'pago';
 }
+
+/** Por onde o pedido chegou: pelo app (mesa/delivery) ou enviado pelo WhatsApp. */
+export type OrderChannel = 'app' | 'whatsapp';
+
+export type ShippingId = 'padrao' | 'expressa';
 
 export type OrderStatus = 'pendente' | 'preparo' | 'pronto' | 'entregue';
 
@@ -97,7 +104,13 @@ export interface Order {
   items: OrderItem[];
   notes: string;
   subtotal: number;
+  /** Frete já com o desconto de cupom de frete aplicado. */
   deliveryFee: number;
+  /** Desconto de cupom no valor dos produtos. */
+  discount?: number;
+  coupons?: string[];
+  channel?: OrderChannel;
+  shipping?: ShippingId;
   total: number;
   payment: Payment;
   status: OrderStatus;

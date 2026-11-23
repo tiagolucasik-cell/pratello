@@ -21,7 +21,8 @@ export const categories: Category[] = [
   { id: 'sobremesas', name: 'Sobremesas' },
 ];
 
-const PASTEL = ['#FEF08A', '#E4E4E7', '#FDE68A', '#F4F4F5'];
+// tons claros da cor de destaque (configurável em Admin → Configurações) alternados com cinzas
+const PASTEL = ['var(--color-yellow-200)', '#E4E4E7', 'var(--color-yellow-100)', '#F4F4F5'];
 
 export const visualCategories: VisualCategory[] = (
   [

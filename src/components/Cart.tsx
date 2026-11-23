@@ -1,40 +1,23 @@
-import { Armchair, Bike, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
-import { useState } from 'react';
+import { Armchair, Bike, ChevronRight, Minus, Plus, ShoppingBag, Ticket, Trash2, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { FREE_DELIVERY_FROM } from '../data/mockData';
 import type { Order } from '../types';
 import { formatLocation, formatPrice, formatTime } from '../utils/format';
-import PaymentSelector, { draftToPayment, emptyPayment, type PaymentDraft } from './PaymentSelector';
 import ProductImage from './ProductImage';
-import { Button, StatusBadge, Textarea } from './ui';
+import { Button, StatusBadge } from './ui';
 
 interface CartProps {
   onClose?: () => void;
-  onOrderPlaced: (order: Order) => void;
   onChangeLocation: () => void;
   myOrders: Order[];
 }
 
-export default function Cart({ onClose, onOrderPlaced, onChangeLocation, myOrders }: CartProps) {
-  const { cartLines, subtotal, deliveryFee, cartTotal, changeQuantity, removeFromCart, placeOrder, session } = useApp();
-  const [notes, setNotes] = useState('');
-  const [payment, setPayment] = useState<PaymentDraft>(emptyPayment);
-  const [error, setError] = useState('');
+export default function Cart({ onClose, onChangeLocation, myOrders }: CartProps) {
+  const { cartLines, subtotal, changeQuantity, removeFromCart, session } = useApp();
+  const navigate = useNavigate();
 
   const location = session?.type === 'cliente' ? session.location : null;
   const isDelivery = location?.mode === 'delivery';
-
-  const finish = () => {
-    const parsed = draftToPayment(payment, cartTotal);
-    if (typeof parsed === 'string') return setError(parsed);
-    const order = placeOrder(notes, parsed);
-    if (order) {
-      setNotes('');
-      setPayment(emptyPayment);
-      setError('');
-      onOrderPlaced(order);
-    }
-  };
 
   const activeOrders = myOrders.filter((o) => o.status !== 'entregue').slice(-3).reverse();
 
@@ -105,26 +88,6 @@ export default function Cart({ onClose, onOrderPlaced, onChangeLocation, myOrder
           </ul>
         )}
 
-        {cartLines.length > 0 && (
-          <>
-            <label className="mt-6 block">
-              <span className="mb-1.5 block text-sm font-semibold text-zinc-800">Observações</span>
-              <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ex: sem cebola, ponto da carne…" />
-            </label>
-            <div className="mt-5">
-              <PaymentSelector
-                value={payment}
-                onChange={(d) => {
-                  setPayment(d);
-                  setError('');
-                }}
-                total={cartTotal}
-                isDelivery={isDelivery}
-              />
-            </div>
-          </>
-        )}
-
         {activeOrders.length > 0 && (
           <div className="mt-6 rounded-xl bg-zinc-50 p-4 ring-1 ring-zinc-200">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">Acompanhe seus pedidos</p>
@@ -142,28 +105,19 @@ export default function Cart({ onClose, onOrderPlaced, onChangeLocation, myOrder
         )}
       </div>
 
-      <div className="space-y-2 border-t border-zinc-200 px-5 py-4">
-        <div className="flex justify-between text-sm text-zinc-600">
+      <div className="space-y-3 border-t border-zinc-200 px-5 py-4">
+        {cartLines.length > 0 && (
+          <p className="flex items-center gap-2 rounded-lg bg-yellow-50 px-3 py-2 text-xs text-yellow-900 ring-1 ring-yellow-200">
+            <Ticket size={14} className="shrink-0" /> Cupons, frete e pagamento na próxima etapa
+          </p>
+        )}
+        <div className="flex justify-between text-lg font-extrabold text-zinc-900">
           <span>Subtotal</span>
           <span>{formatPrice(subtotal)}</span>
         </div>
-        {isDelivery && (
-          <div className="flex justify-between text-sm text-zinc-600">
-            <span>Taxa de entrega</span>
-            <span>{deliveryFee > 0 ? formatPrice(deliveryFee) : <b className="text-green-600">Grátis</b>}</span>
-          </div>
-        )}
-        {isDelivery && deliveryFee > 0 && (
-          <p className="text-xs text-zinc-500">Frete grátis em pedidos a partir de {formatPrice(FREE_DELIVERY_FROM)}.</p>
-        )}
-        <div className="flex justify-between pt-1 text-lg font-extrabold text-zinc-900">
-          <span>Total</span>
-          <span>{formatPrice(cartTotal)}</span>
-        </div>
-        {error && <p className="text-sm font-medium text-red-600">{error}</p>}
-        <Button size="lg" className="w-full justify-between" disabled={cartLines.length === 0} onClick={finish}>
-          <span>Finalizar Pedido</span>
-          <span>{formatPrice(cartTotal)}</span>
+        <Button size="lg" className="w-full justify-between" disabled={cartLines.length === 0} onClick={() => navigate('/checkout')}>
+          <span>Ir para o pagamento</span>
+          <ChevronRight size={18} />
         </Button>
       </div>
     </div>

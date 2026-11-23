@@ -1,4 +1,4 @@
-import { Armchair, ArrowRight, Banknote, Bike, Check, Clock, CreditCard, MessageSquareText, Phone, QrCode, User } from 'lucide-react';
+import { Armchair, ArrowRight, Banknote, Bike, Check, Clock, CreditCard, MessageCircle, MessageSquareText, Phone, QrCode, Ticket, User, Zap } from 'lucide-react';
 import type { Order } from '../types';
 import { NEXT_ACTION_LABEL, formatPayment, formatPrice, formatTime, minutesSince } from '../utils/format';
 import { Button } from './ui';
@@ -50,6 +50,16 @@ export default function OrderCard({ order, onAdvance, onMarkPaid }: Props) {
         <div className="mt-3 rounded-lg bg-yellow-50 px-3 py-2 text-sm ring-1 ring-yellow-200">
           <p className="flex items-center gap-1.5 font-bold text-zinc-900">
             <Bike size={16} /> Delivery
+            {order.shipping === 'expressa' && (
+              <span className="inline-flex items-center gap-0.5 rounded bg-zinc-900 px-1.5 py-0.5 text-[10px] text-yellow-400">
+                <Zap size={10} /> Expressa
+              </span>
+            )}
+            {order.channel === 'whatsapp' && (
+              <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-green-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                <MessageCircle size={11} /> WhatsApp
+              </span>
+            )}
           </p>
           <p className="mt-0.5 text-zinc-800">
             {loc.address.street}, {loc.address.number}
@@ -103,6 +113,12 @@ export default function OrderCard({ order, onAdvance, onMarkPaid }: Props) {
         <div className="leading-tight">
           <span className="text-sm font-bold text-zinc-900">{formatPrice(order.total)}</span>
           {order.deliveryFee > 0 && <p className="text-[11px] text-zinc-500">inclui entrega {formatPrice(order.deliveryFee)}</p>}
+          {order.coupons && order.coupons.length > 0 && (
+            <p className="flex items-center gap-1 text-[11px] font-semibold text-green-700" title={order.coupons.join(', ')}>
+              <Ticket size={11} /> {order.coupons.join(' + ')}
+              {order.discount ? ` · -${formatPrice(order.discount)}` : ''}
+            </p>
+          )}
         </div>
         {action && (
           <Button size="sm" onClick={onAdvance}>
