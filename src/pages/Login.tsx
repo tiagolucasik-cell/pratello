@@ -46,14 +46,14 @@ export default function Login() {
     if (typeof loc === 'string') return setError(loc);
     if (loc.mode === 'delivery' && phone.replace(/\D/g, '').length < 10) return setError('Informe um telefone para contato da entrega.');
     loginClient(name, phone, loc);
-    navigate('/cardapio');
+    navigate('/cardapio', { state: { welcome: true } });
   };
 
   const submitStaff = (e: FormEvent) => {
     e.preventDefault();
     const user = loginStaff(login, password);
     if (!user) return setError('Usuário ou senha inválidos.');
-    navigate(user.role === 'admin' ? '/admin' : '/pedidos');
+    navigate(user.role === 'admin' ? '/admin' : '/pedidos', { state: { welcome: true } });
   };
 
   return (
