@@ -1,4 +1,4 @@
-import { Armchair, Bike, ChevronRight, Minus, Plus, ShoppingBag, Ticket, Trash2, X } from 'lucide-react';
+import { Armchair, Bike, ChevronRight, MapPin, Minus, Plus, ShoppingBag, Ticket, Trash2, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import type { Order } from '../types';
@@ -93,11 +93,20 @@ export default function Cart({ onClose, onChangeLocation, myOrders }: CartProps)
             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">Acompanhe seus pedidos</p>
             <ul className="space-y-2">
               {activeOrders.map((o) => (
-                <li key={o.id} className="flex items-center justify-between text-sm">
-                  <span className="text-zinc-700">
-                    <b>#{o.number}</b> · {formatTime(o.createdAt)}
-                  </span>
-                  <StatusBadge status={o.status} />
+                <li key={o.id}>
+                  <button
+                    onClick={() => navigate(`/pedido/${o.id}`)}
+                    className="-mx-2 flex w-[calc(100%+1rem)] items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-white"
+                  >
+                    <span className="flex items-center gap-1.5 text-zinc-700">
+                      {o.location.mode === 'delivery' ? <MapPin size={14} className="text-yellow-600" /> : <Armchair size={14} className="text-yellow-600" />}
+                      <b>#{o.number}</b> · {formatTime(o.createdAt)}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <StatusBadge status={o.status} />
+                      <ChevronRight size={16} className="text-zinc-400" />
+                    </span>
+                  </button>
                 </li>
               ))}
             </ul>

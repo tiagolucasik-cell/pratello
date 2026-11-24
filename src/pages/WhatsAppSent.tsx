@@ -147,9 +147,12 @@ export default function WhatsAppSent() {
                 O restaurante confirmou o pedido <b>#{order.number}</b> de <b>{formatPrice(order.total)}</b>.
               </p>
               <Link
-                to="/cardapio"
+                to={`/pedido/${order.id}`}
                 className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#008069] px-4 py-3 font-semibold text-white hover:bg-[#006e5a]"
               >
+                {order.location.mode === 'delivery' ? 'Acompanhar entrega no mapa' : 'Acompanhar pedido'}
+              </Link>
+              <Link to="/cardapio" className="mt-2 inline-flex w-full justify-center py-2 text-sm font-semibold text-zinc-600 hover:text-zinc-900">
                 Voltar ao cardápio
               </Link>
             </div>

@@ -17,7 +17,7 @@ body {
   display: none;
 }
 
-/* ---------- Tela de boas-vindas após o login ---------- */
+/* ---------- Tela de boas-vindas após o login: ingredientes caindo ---------- */
 .splash-root {
   clip-path: circle(150% at 50% 50%);
   transition: clip-path 700ms cubic-bezier(0.7, 0, 0.3, 1);
@@ -25,63 +25,133 @@ body {
 .splash-root.splash-leave {
   clip-path: circle(0% at 50% 50%);
 }
+
+/* 1. ingredientes caem com gravidade, quicam e assentam no prato */
+.splash-fall {
+  animation: splash-fall 720ms linear both;
+}
+@keyframes splash-fall {
+  0% {
+    translate: var(--x) -80vh;
+    rotate: var(--r0);
+    scale: 1;
+    animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+  }
+  58% {
+    translate: var(--x) var(--y);
+    rotate: var(--r);
+    scale: 1.2 0.8;
+    animation-timing-function: cubic-bezier(0, 0.55, 0.45, 1);
+  }
+  74% {
+    translate: var(--x) calc(var(--y) - 26px);
+    scale: 0.95 1.05;
+    animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+  }
+  87% {
+    translate: var(--x) var(--y);
+    scale: 1.08 0.92;
+    animation-timing-function: cubic-bezier(0, 0.55, 0.45, 1);
+  }
+  94% {
+    translate: var(--x) calc(var(--y) - 6px);
+    scale: 1;
+    animation-timing-function: ease-in;
+  }
+  100% {
+    translate: var(--x) var(--y);
+    rotate: var(--r);
+    scale: 1;
+  }
+}
+
+/* 2. todos são puxados para o centro e viram o logo */
+.splash-gather {
+  animation: splash-gather 420ms cubic-bezier(0.6, 0, 0.9, 0.4) forwards;
+}
+@keyframes splash-gather {
+  to {
+    translate: calc(var(--x) * -1) calc(var(--y) * -1);
+    scale: 0.2;
+    opacity: 0;
+  }
+}
+
+.splash-plate {
+  translate: -50% 0;
+  animation: splash-plate 1800ms ease-out both;
+}
+@keyframes splash-plate {
+  0% { scale: 0.2 1; opacity: 0; }
+  14% { scale: 1; opacity: 1; }
+  78% { scale: 1; opacity: 1; }
+  100% { scale: 0.1 1; opacity: 0; }
+}
+
+/* 3. impacto: logo, estouro e faíscas */
+.splash-logo {
+  animation: splash-logo 700ms cubic-bezier(0.34, 1.56, 0.64, 1) 1700ms both;
+}
+@keyframes splash-logo {
+  0% { scale: 0; rotate: -25deg; }
+  60% { scale: 1.2; rotate: 6deg; }
+  100% { scale: 1; rotate: 0deg; }
+}
+.splash-burst {
+  translate: -50% -50%;
+  animation: splash-burst 650ms ease-out 1720ms both;
+}
+@keyframes splash-burst {
+  0% { scale: 0.3; opacity: 0; }
+  8% { opacity: 1; }
+  100% { scale: 2.6; opacity: 0; }
+}
+.splash-spark {
+  animation: splash-spark 600ms cubic-bezier(0.1, 0.8, 0.3, 1) 1740ms both;
+}
+@keyframes splash-spark {
+  0% { translate: 0 0; scale: 1; opacity: 0; }
+  10% { opacity: 1; }
+  100% { translate: 0 -120px; scale: 0.2; opacity: 0; }
+}
+
+/* ambiente */
 .splash-ring {
   translate: -50% -50%;
   opacity: 0;
   animation: splash-ring 2.2s ease-out infinite;
 }
-.splash-glow {
-  translate: -50% -50%;
-  animation: splash-glow 2.4s ease-in-out infinite alternate;
-}
-.splash-orbit {
-  animation: splash-spin 14s linear infinite;
-}
-.splash-pop {
-  scale: 0;
-  animation: splash-pop 500ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-.splash-logo {
-  animation: splash-logo 900ms cubic-bezier(0.34, 1.56, 0.64, 1) 100ms both;
-}
-.splash-letter {
-  animation: splash-letter 600ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
-}
-.splash-fade {
-  animation: splash-fade 500ms ease-out both;
-}
-.splash-bar {
-  width: 0;
-  animation: splash-bar 1500ms cubic-bezier(0.4, 0, 0.2, 1) 1100ms forwards;
-}
-
 @keyframes splash-ring {
   0% { scale: 0.4; opacity: 0.9; }
   100% { scale: 6; opacity: 0; }
+}
+.splash-glow {
+  translate: -50% -50%;
+  animation: splash-glow 2.4s ease-in-out infinite alternate;
 }
 @keyframes splash-glow {
   from { scale: 0.85; opacity: 0.6; }
   to { scale: 1.1; opacity: 1; }
 }
-@keyframes splash-spin {
-  to { rotate: 360deg; }
-}
-@keyframes splash-pop {
-  from { scale: 0; opacity: 0; }
-  to { scale: 1; opacity: 1; }
-}
-@keyframes splash-logo {
-  0% { scale: 0; rotate: -180deg; }
-  70% { scale: 1.15; rotate: 8deg; }
-  100% { scale: 1; rotate: 0deg; }
+
+/* 4. textos */
+.splash-letter {
+  animation: splash-letter 600ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
 }
 @keyframes splash-letter {
   from { translate: 0 110%; opacity: 0; }
   to { translate: 0 0; opacity: 1; }
 }
+.splash-fade {
+  animation: splash-fade 500ms ease-out both;
+}
 @keyframes splash-fade {
   from { translate: 0 8px; opacity: 0; }
   to { translate: 0 0; opacity: 1; }
+}
+.splash-bar {
+  width: 0;
+  animation: splash-bar 1200ms cubic-bezier(0.4, 0, 0.2, 1) 1900ms forwards;
 }
 @keyframes splash-bar {
   to { width: 100%; }
@@ -95,6 +165,213 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 200ms !important;
   }
-  .splash-ring { display: none; }
+  .splash-ring,
+  .splash-burst,
+  .splash-spark,
+  .splash-plate,
+  .splash-fall { display: none; }
   .splash-bar { width: 100%; }
+}
+
+/* ---------- Confete ---------- */
+.confetti-piece {
+  opacity: 0;
+  animation-name: confetti;
+  animation-timing-function: cubic-bezier(0.15, 0.6, 0.35, 1);
+  animation-fill-mode: both;
+}
+@keyframes confetti {
+  0% { translate: 0 0; rotate: 0deg; opacity: 1; }
+  35% { translate: var(--dx) var(--dy); opacity: 1; }
+  100% { translate: calc(var(--dx) * 1.25) calc(var(--dy) + 520px); rotate: var(--rot); opacity: 0; }
+}
+
+/* ---------- Pedido confirmado ---------- */
+.placed-root {
+  clip-path: circle(150% at 50% 50%);
+  transition: clip-path 650ms cubic-bezier(0.7, 0, 0.3, 1);
+}
+.placed-root.placed-leave {
+  clip-path: circle(0% at 50% 50%);
+}
+.placed-wave {
+  translate: -50% -50%;
+  animation: placed-wave 1400ms ease-out both;
+}
+@keyframes placed-wave {
+  0% { scale: 0.3; opacity: 0; }
+  15% { opacity: 1; }
+  100% { scale: 9; opacity: 0; }
+}
+.placed-circle {
+  animation: placed-circle 650ms cubic-bezier(0.34, 1.56, 0.64, 1) 150ms both;
+}
+@keyframes placed-circle {
+  from { scale: 0; }
+  to { scale: 1; }
+}
+.placed-check {
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: placed-check 450ms cubic-bezier(0.65, 0, 0.35, 1) 550ms forwards;
+}
+@keyframes placed-check {
+  to { stroke-dashoffset: 0; }
+}
+.placed-up {
+  animation: splash-fade 500ms ease-out both;
+}
+
+/* ---------- Pedido entregue ---------- */
+.delivered-card {
+  animation: delivered-card 500ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes delivered-card {
+  from { scale: 0.7; opacity: 0; }
+  to { scale: 1; opacity: 1; }
+}
+.delivered-icon {
+  animation: delivered-icon 900ms cubic-bezier(0.34, 1.56, 0.64, 1) 100ms both;
+}
+@keyframes delivered-icon {
+  0% { scale: 0; rotate: -40deg; }
+  60% { scale: 1.2; rotate: 12deg; }
+  100% { scale: 1; rotate: 0deg; }
+}
+
+/* ---------- Rastreio ---------- */
+.track-pop {
+  animation: track-pop 450ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes track-pop {
+  from { scale: 0.92; opacity: 0; }
+  to { scale: 1; opacity: 1; }
+}
+.track-shimmer {
+  background-image: linear-gradient(90deg, transparent 0%, rgb(255 255 255 / 0.7) 50%, transparent 100%);
+  background-size: 50% 100%;
+  background-repeat: no-repeat;
+  animation: track-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes track-shimmer {
+  from { background-position: -100% 0; }
+  to { background-position: 200% 0; }
+}
+.track-ring {
+  animation: splash-ring 1.8s ease-out infinite;
+  opacity: 0;
+}
+.track-wobble {
+  animation: track-pop 450ms cubic-bezier(0.34, 1.56, 0.64, 1) both, track-wobble 1.2s ease-in-out 450ms infinite;
+}
+@keyframes track-wobble {
+  0%, 100% { rotate: -6deg; }
+  50% { rotate: 6deg; }
+}
+.track-ring-bell {
+  transform-origin: 50% 10%;
+  animation: track-pop 450ms cubic-bezier(0.34, 1.56, 0.64, 1) both, track-bell 1.6s ease-in-out 450ms infinite;
+}
+@keyframes track-bell {
+  0%, 50%, 100% { rotate: 0deg; }
+  10%, 30% { rotate: 14deg; }
+  20%, 40% { rotate: -14deg; }
+}
+.track-steam {
+  opacity: 0;
+  animation: track-steam 1.6s ease-out infinite;
+}
+@keyframes track-steam {
+  0% { translate: 0 20px; opacity: 0; scale: 1 0.6; }
+  30% { opacity: 1; }
+  100% { translate: 0 -10px; opacity: 0; scale: 1 1.2; }
+}
+
+/* ---------- Mapa ---------- */
+.pratello-marker {
+  background: none;
+  border: 0;
+}
+.map-pin {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 50% 50% 50% 0;
+  rotate: -45deg;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 6px 14px -4px rgb(0 0 0 / 0.45);
+  border: 3px solid #fff;
+}
+.map-pin > span {
+  rotate: 45deg;
+  display: grid;
+}
+.map-pin-dark {
+  background: #18181b;
+  color: var(--color-yellow-400);
+}
+.map-pin-accent {
+  background: var(--color-yellow-400);
+  color: #18181b;
+}
+.map-courier {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+}
+.map-courier-dot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  background: var(--color-yellow-400);
+  color: #18181b;
+  border: 3px solid #fff;
+  box-shadow: 0 6px 16px -4px rgb(0 0 0 / 0.5);
+}
+.map-courier-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: var(--color-yellow-400);
+  animation: map-pulse 1.6s ease-out infinite;
+}
+@keyframes map-pulse {
+  from { scale: 0.6; opacity: 0.7; }
+  to { scale: 1.8; opacity: 0; }
+}
+.leaflet-container path.route-todo {
+  stroke: var(--color-yellow-500);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 1.5px #18181b);
+}
+.leaflet-container path.route-done {
+  stroke: #71717a;
+  stroke-opacity: 0.55;
+  stroke-dasharray: 2 9;
+  stroke-linecap: round;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confetti-piece { display: none; }
+  .placed-root *,
+  .delivered-card,
+  .delivered-icon,
+  .track-pop,
+  .track-shimmer,
+  .track-wobble,
+  .track-ring-bell,
+  .track-steam,
+  .track-ring,
+  .map-courier-pulse {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

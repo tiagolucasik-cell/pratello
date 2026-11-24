@@ -102,7 +102,7 @@ export default function Checkout() {
     });
     if (!order) return setError('Não foi possível enviar o pedido. Tente novamente.');
     if (mode === 'whatsapp') navigate(`/pedido-whatsapp/${order.id}`);
-    else navigate('/cardapio', { state: { placedOrderId: order.id } });
+    else navigate(`/pedido/${order.id}`, { state: { placed: true } });
   };
 
   if (cartLines.length === 0) {
