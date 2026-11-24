@@ -1,6 +1,8 @@
-import { Armchair, ArrowRight, Banknote, Bike, Check, Clock, CreditCard, MessageCircle, MessageSquareText, Phone, QrCode, Ticket, User, Zap } from 'lucide-react';
+import { Armchair, ArrowRight, Banknote, Bike, Check, Clock, CreditCard, Map, MessageCircle, MessageSquareText, Phone, QrCode, Star, Ticket, User, Zap } from 'lucide-react';
+import { useState } from 'react';
 import type { Order } from '../types';
 import { NEXT_ACTION_LABEL, formatPayment, formatPrice, formatTime, minutesSince } from '../utils/format';
+import DeliveryMapModal from './DeliveryMapModal';
 import { Button } from './ui';
 
 const PAYMENT_ICON = { cartao: CreditCard, pix: QrCode, dinheiro: Banknote };
@@ -12,7 +14,10 @@ interface Props {
 }
 
 export default function OrderCard({ order, onAdvance, onMarkPaid }: Props) {
-  const action = NEXT_ACTION_LABEL[order.status];
+  const [showMap, setShowMap] = useState(false);
+  const isDelivery = order.location.mode === 'delivery';
+  // na entrega, "pronto" significa que o entregador saiu com o pedido
+  const action = isDelivery && order.status === 'preparo' ? 'Saiu para entrega' : NEXT_ACTION_LABEL[order.status];
   const waiting = minutesSince(order.createdAt);
   const late = order.status !== 'entregue' && waiting >= 20;
   const loc = order.location;
@@ -73,6 +78,12 @@ export default function OrderCard({ order, onAdvance, onMarkPaid }: Props) {
               <Phone size={12} /> {order.phone}
             </p>
           )}
+          <button
+            onClick={() => setShowMap(true)}
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg bg-white py-1.5 text-xs font-bold text-zinc-800 ring-1 ring-yellow-300 hover:bg-yellow-100"
+          >
+            <Map size={14} /> {order.status === 'pronto' ? 'Acompanhar entregador' : 'Ver no mapa'}
+          </button>
         </div>
       )}
 
@@ -83,6 +94,15 @@ export default function OrderCard({ order, onAdvance, onMarkPaid }: Props) {
           </li>
         ))}
       </ul>
+
+      {order.rating && (
+        <p className="mt-2 flex items-center gap-1 text-xs font-semibold text-zinc-600" aria-label={`Cliente avaliou com ${order.rating} estrelas`}>
+          Avaliação:
+          {[1, 2, 3, 4, 5].map((n) => (
+            <Star key={n} size={12} className={n <= order.rating! ? 'text-yellow-400' : 'text-zinc-300'} fill="currentColor" />
+          ))}
+        </p>
+      )}
 
       {order.notes && (
         <p className="mt-3 flex gap-1.5 rounded-lg bg-yellow-50 p-2 text-sm text-yellow-900 ring-1 ring-yellow-200">
@@ -126,6 +146,7 @@ export default function OrderCard({ order, onAdvance, onMarkPaid }: Props) {
           </Button>
         )}
       </footer>
+      {showMap && <DeliveryMapModal order={order} onClose={() => setShowMap(false)} />}
     </article>
   );
 }

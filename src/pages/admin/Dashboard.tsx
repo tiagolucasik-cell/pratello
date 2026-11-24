@@ -1,4 +1,4 @@
-import { DollarSign, Receipt, ShoppingBag, Trophy } from 'lucide-react';
+import { DollarSign, Receipt, ShoppingBag, Star, Trophy } from 'lucide-react';
 import { useMemo } from 'react';
 import { StatusBadge } from '../../components/ui';
 import { useApp } from '../../context/AppContext';
@@ -33,6 +33,14 @@ export default function Dashboard() {
       revenueByCategory,
     };
   }, [orders, products]);
+
+  // Avaliações dos clientes (todas as datas)
+  const ratings = useMemo(() => {
+    const rated = orders.filter((o) => o.rating).sort((a, b) => (b.ratedAt ?? 0) - (a.ratedAt ?? 0));
+    const dist = [5, 4, 3, 2, 1].map((n) => ({ n, count: rated.filter((o) => o.rating === n).length }));
+    const avg = rated.length ? rated.reduce((s, o) => s + o.rating!, 0) / rated.length : 0;
+    return { rated, dist, avg };
+  }, [orders]);
 
   const cards = [
     { label: 'Faturamento do dia', value: formatPrice(stats.revenue), icon: DollarSign },
@@ -127,6 +135,56 @@ export default function Dashboard() {
           </ul>
         </section>
       </div>
+
+      <section className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <h2 className="flex items-center gap-2 font-bold text-zinc-900">
+          <Star size={18} /> Avaliações dos clientes
+        </h2>
+        {ratings.rated.length === 0 ? (
+          <p className="mt-3 text-sm text-zinc-500">Nenhuma avaliação ainda. Os clientes avaliam quando o pedido é entregue.</p>
+        ) : (
+          <div className="mt-4 grid gap-6 md:grid-cols-[180px_1fr_1.3fr]">
+            <div className="text-center md:text-left">
+              <p className="text-5xl font-extrabold text-zinc-900">{ratings.avg.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</p>
+              <div className="mt-1 flex justify-center gap-0.5 md:justify-start">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <Star key={n} size={18} className={n <= Math.round(ratings.avg) ? 'text-yellow-400' : 'text-zinc-300'} fill="currentColor" />
+                ))}
+              </div>
+              <p className="mt-1 text-sm text-zinc-500">
+                {ratings.rated.length} {ratings.rated.length === 1 ? 'avaliação' : 'avaliações'}
+              </p>
+            </div>
+            <ul className="space-y-1.5">
+              {ratings.dist.map(({ n, count }) => (
+                <li key={n} className="flex items-center gap-2 text-sm">
+                  <span className="flex w-8 items-center gap-0.5 font-semibold text-zinc-700">
+                    {n} <Star size={12} className="text-yellow-400" fill="currentColor" />
+                  </span>
+                  <span className="h-2 flex-1 rounded-full bg-zinc-100">
+                    <span className="block h-2 rounded-full bg-yellow-400" style={{ width: `${(count / ratings.rated.length) * 100}%` }} />
+                  </span>
+                  <span className="w-6 text-right text-zinc-500">{count}</span>
+                </li>
+              ))}
+            </ul>
+            <ul className="divide-y divide-zinc-100">
+              {ratings.rated.slice(0, 5).map((o) => (
+                <li key={o.id} className="flex items-center justify-between gap-2 py-2 text-sm">
+                  <span className="min-w-0 truncate">
+                    <b className="text-zinc-900">#{o.number}</b> · <span className="text-zinc-600">{o.customerName}</span>
+                  </span>
+                  <span className="flex shrink-0 gap-0.5" aria-label={`${o.rating} estrelas`}>
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <Star key={n} size={13} className={n <= o.rating! ? 'text-yellow-400' : 'text-zinc-300'} fill="currentColor" />
+                    ))}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

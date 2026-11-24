@@ -1,4 +1,4 @@
-import { Armchair, ArrowLeft, Bike, ChevronRight, MapPin, Receipt, RotateCcw } from 'lucide-react';
+import { Armchair, ArrowLeft, Bike, ChevronRight, MapPin, Receipt, RotateCcw, Star } from 'lucide-react';
 import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -110,6 +110,17 @@ export default function MyOrders() {
                         #{o.number} · {o.items.map((it) => `${it.quantity}x ${it.name}`).join(', ')}
                       </p>
                       <p className="truncate text-xs text-zinc-400">{formatLocation(o.location)}</p>
+                      {o.rating ? (
+                        <span className="mt-1 flex gap-0.5" aria-label={`Avaliado com ${o.rating} estrelas`}>
+                          {[1, 2, 3, 4, 5].map((n) => (
+                            <Star key={n} size={13} className={n <= o.rating! ? 'text-yellow-400' : 'text-zinc-300'} fill="currentColor" />
+                          ))}
+                        </span>
+                      ) : (
+                        <span className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-yellow-700">
+                          <Star size={12} /> Avaliar pedido
+                        </span>
+                      )}
                     </div>
                     <span className="shrink-0 text-sm font-bold text-zinc-900">{formatPrice(o.total)}</span>
                   </Link>

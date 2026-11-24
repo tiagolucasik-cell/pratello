@@ -119,10 +119,31 @@ export function OrderPlacedSplash({ order, onDone }: { order: Order; onDone: () 
 }
 
 /** Comemoração quando o pedido chega: confete, mensagem e avaliação com estrelas. */
-export function DeliveredCelebration({ order, onClose }: { order: Order; onClose: () => void }) {
-  const [rating, setRating] = useState(0);
+/** Estrelas clicáveis de 1 a 5. */
+export function StarPicker({ value, onChange, size = 30 }: { value: number; onChange: (n: number) => void; size?: number }) {
   const [hover, setHover] = useState(0);
-  const [sent, setSent] = useState(false);
+  return (
+    <div className="flex justify-center gap-1" onMouseLeave={() => setHover(0)}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          type="button"
+          onClick={() => onChange(n)}
+          onMouseEnter={() => setHover(n)}
+          className="rounded-lg p-1 transition-transform hover:scale-110"
+          aria-label={`${n} ${n === 1 ? 'estrela' : 'estrelas'}`}
+          aria-pressed={value === n}
+        >
+          <Star size={size} className={(hover || value) >= n ? 'text-yellow-400' : 'text-zinc-300'} fill="currentColor" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function DeliveredCelebration({ order, onClose, onRate }: { order: Order; onClose: () => void; onRate: (rating: number) => void }) {
+  const [rating, setRating] = useState(order.rating ?? 0);
+  const [sent, setSent] = useState(!!order.rating);
   const firstName = order.customerName.split(' ')[0];
   const isDelivery = order.location.mode === 'delivery';
 
@@ -156,22 +177,15 @@ export function DeliveredCelebration({ order, onClose }: { order: Order; onClose
         ) : (
           <>
             <p className="mt-6 text-sm font-semibold text-zinc-900">Como foi seu pedido?</p>
-            <div className="mt-2 flex justify-center gap-1" onMouseLeave={() => setHover(0)}>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setRating(n)}
-                  onMouseEnter={() => setHover(n)}
-                  className="rounded-lg p-1 transition-transform hover:scale-110"
-                  aria-label={`${n} ${n === 1 ? 'estrela' : 'estrelas'}`}
-                >
-                  <Star size={30} className={(hover || rating) >= n ? 'text-yellow-400' : 'text-zinc-300'} fill="currentColor" />
-                </button>
-              ))}
+            <div className="mt-2">
+              <StarPicker value={rating} onChange={setRating} />
             </div>
             <button
               disabled={!rating}
-              onClick={() => setSent(true)}
+              onClick={() => {
+                onRate(rating);
+                setSent(true);
+              }}
               className="mt-5 w-full rounded-xl bg-yellow-400 py-3 font-bold text-zinc-900 hover:bg-yellow-500 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Enviar avaliação

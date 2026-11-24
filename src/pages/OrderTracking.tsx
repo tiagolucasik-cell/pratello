@@ -19,15 +19,13 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { DeliveredCelebration, OrderPlacedSplash } from '../components/Celebration';
-import DeliveryMap, { courierFraction, type CourierState } from '../components/DeliveryMap';
+import { DeliveredCelebration, OrderPlacedSplash, StarPicker } from '../components/Celebration';
+import DeliveryMap, { courierFraction } from '../components/DeliveryMap';
 import { useApp } from '../context/AppContext';
-import type { Order, OrderStatus } from '../types';
+import type { OrderStatus } from '../types';
 import { formatLocation, formatLocationFull, formatPayment, formatPrice, formatTime } from '../utils/format';
-import { getRestaurant, getRoute, locateCustomer, type LatLng, type Route } from '../utils/geo';
+import { courierStateFor, RIDE_MS, useDeliveryGeo } from '../utils/tracking';
 
-/** Tempo da animação do entregador no mapa (demo: 1 minuto, mas o texto mostra o tempo real da rota). */
-const RIDE_MS = 60_000;
 /** Tempos do modo apresentação até avançar cada etapa. */
 const SIM_DELAY: Partial<Record<OrderStatus, number>> = { pendente: 2500, preparo: 5000 };
 
@@ -73,35 +71,6 @@ const pickCourier = (id: string) => COURIERS[[...id].reduce((h, c) => (h * 31 + 
 
 const addMin = (t: number, m: number) => t + m * 60_000;
 
-/** Coordenadas do restaurante/cliente e a rota, buscadas uma vez por pedido. */
-function useDeliveryGeo(order: Order | undefined) {
-  const [geo, setGeo] = useState<{ restaurant: LatLng; customer: LatLng | null; route: Route | null; approximate: boolean }>(() => {
-    const r = getRestaurant();
-    return { restaurant: [r.lat, r.lng], customer: null, route: null, approximate: false };
-  });
-  const address = order?.location.mode === 'delivery' ? order.location.address : null;
-  const addressKey = address ? `${address.cep}|${address.street}|${address.number}|${address.district}` : '';
-
-  useEffect(() => {
-    if (!address) return;
-    const ctrl = new AbortController();
-    const r = getRestaurant();
-    const restaurant: LatLng = [r.lat, r.lng];
-    (async () => {
-      const customer = await locateCustomer(address, restaurant, ctrl.signal);
-      setGeo({ restaurant, customer: customer.point, route: null, approximate: customer.approximate });
-      const route = await getRoute(restaurant, customer.point, ctrl.signal);
-      setGeo({ restaurant, customer: customer.point, route, approximate: customer.approximate });
-    })().catch((e: unknown) => {
-      if ((e as Error).name !== 'AbortError') console.error(e);
-    });
-    return () => ctrl.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addressKey]);
-
-  return geo;
-}
-
 /** Atualiza a tela periodicamente (contagem de minutos). */
 function useNow(ms: number) {
   const [now, setNow] = useState(Date.now);
@@ -114,7 +83,7 @@ function useNow(ms: number) {
 
 export default function OrderTracking() {
   const { id } = useParams();
-  const { orders, session, advanceOrder } = useApp();
+  const { orders, session, advanceOrder, rateOrder } = useApp();
   const routerLocation = useLocation();
   const navigate = useNavigate();
   const order = orders.find((o) => o.id === id);
@@ -140,13 +109,7 @@ export default function OrderTracking() {
     return () => clearTimeout(t);
   }, [simulate, order, advanceOrder]);
 
-  const courier = useMemo<CourierState>(() => {
-    if (!order) return { mode: 'hidden' };
-    if (order.status === 'entregue') return { mode: 'arrived' };
-    if (order.status === 'pronto') return { mode: 'riding', start: order.updatedAt, ms: RIDE_MS };
-    if (order.status === 'preparo') return { mode: 'waiting' };
-    return { mode: 'hidden' };
-  }, [order]);
+  const courier = useMemo(() => courierStateFor(order), [order]);
 
   if (!order || session?.type !== 'cliente' || order.clientId !== session.clientId) return <Navigate to="/cardapio" replace />;
 
@@ -174,7 +137,7 @@ export default function OrderTracking() {
   return (
     <div className="min-h-screen bg-zinc-100">
       {justPlaced && <OrderPlacedSplash order={order} onDone={() => navigate('.', { replace: true, state: null })} />}
-      {celebrate && <DeliveredCelebration order={order} onClose={() => setCelebrate(false)} />}
+      {celebrate && <DeliveredCelebration order={order} onClose={() => setCelebrate(false)} onRate={(n) => rateOrder(order.id, n)} />}
 
       <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1400px] items-center gap-3 px-4 py-3 sm:px-6">
@@ -302,6 +265,31 @@ export default function OrderTracking() {
                     <MessageCircle size={18} />
                   </button>
                 </div>
+              )}
+            </section>
+          )}
+
+          {/* Avaliação */}
+          {order.status === 'entregue' && (
+            <section className="rounded-2xl bg-white p-5 text-center shadow-sm ring-1 ring-zinc-200">
+              {order.rating ? (
+                <>
+                  <p className="text-sm font-bold text-zinc-900">Sua avaliação</p>
+                  <div className="mt-1 flex justify-center gap-0.5" aria-label={`${order.rating} de 5 estrelas`}>
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <Star key={n} size={22} className={n <= order.rating! ? 'text-yellow-400' : 'text-zinc-300'} fill="currentColor" />
+                    ))}
+                  </div>
+                  <p className="mt-1 text-xs text-zinc-500">Obrigado! Sua opinião ajuda o restaurante.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-bold text-zinc-900">Como foi seu pedido?</p>
+                  <p className="text-xs text-zinc-500">Toque nas estrelas para avaliar</p>
+                  <div className="mt-2">
+                    <StarPicker value={0} onChange={(n) => rateOrder(order.id, n)} />
+                  </div>
+                </>
               )}
             </section>
           )}

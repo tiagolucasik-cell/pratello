@@ -114,6 +114,9 @@ export interface Order {
   total: number;
   payment: Payment;
   status: OrderStatus;
+  /** Avaliação do cliente (1 a 5 estrelas) depois da entrega. */
+  rating?: number;
+  ratedAt?: number;
   createdAt: number;
   updatedAt: number;
 }

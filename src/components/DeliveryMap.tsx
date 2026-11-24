@@ -103,7 +103,7 @@ export default function DeliveryMap({ restaurant, customer, route, courier, clas
       const { point, index } = pointAlong(points, f);
       l.done.setLatLngs([...points.slice(0, index + 1), point]);
       l.todo.setLatLngs(c.mode === 'arrived' ? [] : [point, ...points.slice(index + 1)]);
-      if (c.mode === 'hidden') l.courier.remove();
+      if (c.mode === 'hidden' || c.mode === 'arrived') l.courier.remove(); // entregue: a rota fica toda percorrida e só a casa aparece
       else {
         l.courier.setLatLng(point);
         if (!m.hasLayer(l.courier)) l.courier.addTo(m);

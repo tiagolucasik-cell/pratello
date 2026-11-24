@@ -133,6 +133,7 @@ interface AppContextValue {
 
   advanceOrder: (orderId: string) => void;
   markOrderPaid: (orderId: string) => void;
+  rateOrder: (orderId: string, rating: number) => void;
 
   saveProduct: (input: ProductInput) => void;
   deleteProduct: (id: string) => void;
@@ -290,6 +291,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [setOrders],
   );
 
+  const rateOrder = useCallback(
+    (orderId: string, rating: number) =>
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, rating: Math.min(5, Math.max(1, Math.round(rating))), ratedAt: Date.now() } : o))),
+    [setOrders],
+  );
+
   const markOrderPaid = useCallback(
     (orderId: string) =>
       setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, payment: { ...o.payment, status: 'pago' } } : o))),
@@ -388,6 +395,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     placeOrder,
     advanceOrder,
     markOrderPaid,
+    rateOrder,
     saveProduct,
     deleteProduct,
     toggleProductAvailability,
