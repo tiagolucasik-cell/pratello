@@ -1,6 +1,6 @@
-import { Armchair, Bike, CheckCircle2, ChevronDown, LogOut, Search, ShoppingBag, Sparkles, User, X } from 'lucide-react';
+import { Armchair, Bike, CheckCircle2, ChevronDown, ChevronRight, LogOut, Receipt, Search, ShoppingBag, Sparkles, User, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Cart from '../components/Cart';
 import CategoryCarousel from '../components/CategoryCarousel';
 import FeaturedSection from '../components/FeaturedSection';
@@ -12,7 +12,7 @@ import ProductModal from '../components/ProductModal';
 import { Button } from '../components/ui';
 import { useApp } from '../context/AppContext';
 import type { CategoryId, Order, Product, TagId } from '../types';
-import { discountPercent, formatLocation, formatPrice } from '../utils/format';
+import { discountPercent, formatLocation, formatPrice, STATUS_STEP, trackingLabel } from '../utils/format';
 
 type Chip = 'todos' | 'populares' | CategoryId;
 
@@ -67,6 +67,8 @@ export default function Menu() {
   );
 
   const myOrders = useMemo(() => (client ? orders.filter((o) => o.clientId === client.clientId) : []), [orders, client]);
+  const activeOrders = useMemo(() => myOrders.filter((o) => o.status !== 'entregue').sort((a, b) => b.createdAt - a.createdAt), [myOrders]);
+  const liveOrder = activeOrders[0];
 
   const qtyInCart = (id: string) => cartLines.find((l) => l.product.id === id)?.quantity ?? 0;
 
@@ -153,6 +155,18 @@ export default function Menu() {
             </div>
           </div>
           <div className="ml-auto flex items-center gap-2 md:ml-0">
+            <Link
+              to="/meus-pedidos"
+              className="relative flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-100"
+              title="Meus pedidos"
+            >
+              <Receipt size={18} /> <span className="hidden sm:inline">Meus pedidos</span>
+              {activeOrders.length > 0 && (
+                <span className="absolute -right-1.5 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-yellow-400 px-1 text-[11px] font-bold text-zinc-900 ring-2 ring-white">
+                  {activeOrders.length}
+                </span>
+              )}
+            </Link>
             <div className="hidden items-center gap-2 rounded-xl bg-zinc-100 px-3 py-2 lg:flex">
               <User size={16} className="text-zinc-500" />
               <p className="text-sm font-semibold text-zinc-900">{client?.name}</p>
@@ -308,6 +322,34 @@ export default function Menu() {
           </div>
         )}
       </Modal>
+
+      {/* Pedido em andamento: atalho para o rastreio */}
+      {liveOrder && !cartOpen && (
+        <Link
+          to={`/pedido/${liveOrder.id}`}
+          className="live-order fixed inset-x-3 bottom-[76px] z-30 flex items-center gap-3 rounded-2xl bg-zinc-900 p-3 pr-4 text-white shadow-xl ring-1 ring-white/10 lg:inset-x-auto lg:bottom-6 lg:left-6 lg:w-[380px]"
+        >
+          <span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-yellow-400 text-zinc-900">
+            <span className="absolute inset-0 animate-ping rounded-xl bg-yellow-400/40" />
+            {liveOrder.location.mode === 'delivery' ? <Bike size={20} className="relative" /> : <Armchair size={20} className="relative" />}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-bold">{trackingLabel(liveOrder)}</span>
+            <span className="mt-1 grid grid-cols-4 gap-1" aria-hidden="true">
+              {[0, 1, 2, 3].map((i) => (
+                <span key={i} className={`h-1 rounded-full ${i <= STATUS_STEP[liveOrder.status] ? 'bg-yellow-400' : 'bg-white/20'}`} />
+              ))}
+            </span>
+            <span className="mt-1 block truncate text-[11px] text-zinc-400">
+              Pedido #{liveOrder.number}
+              {activeOrders.length > 1 ? ` · +${activeOrders.length - 1} em andamento` : ''}
+            </span>
+          </span>
+          <span className="flex shrink-0 items-center text-xs font-bold text-yellow-400">
+            Acompanhar <ChevronRight size={16} />
+          </span>
+        </Link>
+      )}
 
       {/* Toast de confirmação */}
       {toast && (

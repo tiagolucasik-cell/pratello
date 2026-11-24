@@ -70,3 +70,20 @@ export const NEXT_ACTION_LABEL: Record<OrderStatus, string | null> = {
   pronto: 'Marcar como entregue',
   entregue: null,
 };
+
+/** Status como o cliente vê no rastreio (muda para entrega ou mesa). */
+export function trackingLabel(o: { status: OrderStatus; location: ServiceLocation }): string {
+  const delivery = o.location.mode === 'delivery';
+  switch (o.status) {
+    case 'pendente':
+      return delivery ? 'Aguardando confirmação' : 'Enviado à cozinha';
+    case 'preparo':
+      return 'Em preparo';
+    case 'pronto':
+      return delivery ? 'Saiu para entrega' : 'A caminho da mesa';
+    case 'entregue':
+      return delivery ? 'Entregue' : 'Servido';
+  }
+}
+
+export const STATUS_STEP: Record<OrderStatus, number> = { pendente: 0, preparo: 1, pronto: 2, entregue: 3 };

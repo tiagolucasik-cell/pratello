@@ -33,6 +33,32 @@ function write(storage: Storage, key: string, value: unknown) {
   }
 }
 
+/**
+ * Identidade do cliente que se mantém entre logins, para ele voltar e ver os pedidos:
+ * pelo telefone (vale em qualquer aba) ou, sem telefone, pelo nome neste navegador.
+ */
+function clientIdFor(name: string, phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length >= 10) return `c-tel-${digits}`;
+  let device = '';
+  try {
+    device = localStorage.getItem('pratello:v2:device') ?? '';
+    if (!device) {
+      device = uid('d');
+      localStorage.setItem('pratello:v2:device', device);
+    }
+  } catch {
+    return uid('c');
+  }
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-');
+  return `c-${device}-${slug}`;
+}
+
 /** Estado persistido no localStorage e sincronizado entre abas (evento `storage`). */
 function useSharedState<T>(key: string, initial: () => T) {
   const [state, setState] = useState<T>(() => read<T>(localStorage, key) ?? initial());
@@ -140,7 +166,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   /* Autenticação */
   const loginClient = useCallback(
     (name: string, phone: string, location: ServiceLocation) => {
-      setSession({ type: 'cliente', clientId: uid('c'), name: name.trim(), phone: phone.trim(), location });
+      setSession({ type: 'cliente', clientId: clientIdFor(name, phone), name: name.trim(), phone: phone.trim(), location });
       setCart([]);
     },
     [setSession, setCart],

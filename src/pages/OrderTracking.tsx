@@ -11,6 +11,7 @@ import {
   MessageCircle,
   Phone,
   Play,
+  Receipt,
   Square,
   Star,
   UtensilsCrossed,
@@ -186,10 +187,13 @@ export default function OrderTracking() {
               Pedido #{order.number} · {formatTime(order.createdAt)}
             </h1>
           </div>
+          <Link to="/meus-pedidos" className="ml-auto flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-100" title="Meus pedidos">
+            <Receipt size={16} /> <span className="hidden sm:inline">Meus pedidos</span>
+          </Link>
           <button
             onClick={() => setSimulate((s) => !s)}
             disabled={order.status === 'entregue'}
-            className={`ml-auto flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-colors disabled:opacity-40 ${
+            className={`flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-colors disabled:opacity-40 ${
               simulate ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
             }`}
             title="Avança as etapas sozinho, para apresentar sem abrir a tela da cozinha"
@@ -383,9 +387,14 @@ export default function OrderTracking() {
             </div>
           </section>
 
-          <Link to="/cardapio" className="block rounded-xl bg-yellow-400 py-3 text-center font-bold text-zinc-900 hover:bg-yellow-500">
-            Voltar ao cardápio
-          </Link>
+          <div className="grid grid-cols-2 gap-2">
+            <Link to="/meus-pedidos" className="rounded-xl bg-white py-3 text-center font-bold text-zinc-900 ring-1 ring-zinc-200 hover:bg-zinc-50">
+              Meus pedidos
+            </Link>
+            <Link to="/cardapio" className="rounded-xl bg-yellow-400 py-3 text-center font-bold text-zinc-900 hover:bg-yellow-500">
+              Voltar ao cardápio
+            </Link>
+          </div>
         </div>
       </div>
     </div>

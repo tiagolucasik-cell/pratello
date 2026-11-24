@@ -11,6 +11,7 @@ import Checkout from './pages/Checkout';
 import Login from './pages/Login';
 import Menu from './pages/Menu';
 import Orders from './pages/Orders';
+import MyOrders from './pages/MyOrders';
 import OrderTracking from './pages/OrderTracking';
 import WhatsAppSent from './pages/WhatsAppSent';
 import { homeFor } from './utils/routes';
@@ -36,6 +37,14 @@ export default function App() {
           element={
             <ProtectedRoute allow={['cliente']}>
               <Checkout />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/meus-pedidos"
+          element={
+            <ProtectedRoute allow={['cliente']}>
+              <MyOrders />
             </ProtectedRoute>
           }
         />
