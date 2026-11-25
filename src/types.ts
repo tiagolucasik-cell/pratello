@@ -114,6 +114,8 @@ export interface Order {
   total: number;
   payment: Payment;
   status: OrderStatus;
+  /** Código de 4 dígitos que o cliente informa ao entregador (só delivery). */
+  deliveryCode?: string;
   /** Avaliação do cliente (1 a 5 estrelas) depois da entrega. */
   rating?: number;
   ratedAt?: number;

@@ -144,6 +144,7 @@ export function createSeedOrders(): Order[] {
       subtotal,
       deliveryFee,
       total: subtotal + deliveryFee,
+      deliveryCode: o.location.mode === 'delivery' ? String(4821 + i * 1373).slice(-4) : undefined,
       createdAt,
       updatedAt: createdAt,
     };

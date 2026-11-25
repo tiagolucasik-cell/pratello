@@ -87,3 +87,8 @@ export function trackingLabel(o: { status: OrderStatus; location: ServiceLocatio
 }
 
 export const STATUS_STEP: Record<OrderStatus, number> = { pendente: 0, preparo: 1, pronto: 2, entregue: 3 };
+
+/** Código de entrega de 4 dígitos (0000–9999). */
+export function newDeliveryCode(): string {
+  return String(Math.floor(Math.random() * 10_000)).padStart(4, '0');
+}

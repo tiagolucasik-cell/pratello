@@ -6,6 +6,7 @@ import {
   CircleCheck,
   ClipboardCheck,
   Clock,
+  KeyRound,
   CreditCard,
   MapPin,
   MessageCircle,
@@ -83,7 +84,7 @@ function useNow(ms: number) {
 
 export default function OrderTracking() {
   const { id } = useParams();
-  const { orders, session, advanceOrder, rateOrder } = useApp();
+  const { orders, session, advanceOrder, deliverOrder, rateOrder } = useApp();
   const routerLocation = useLocation();
   const navigate = useNavigate();
   const order = orders.find((o) => o.id === id);
@@ -92,6 +93,8 @@ export default function OrderTracking() {
   const now = useNow(1000);
   const [simulate, setSimulate] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
+  /** Simulação: dígitos que o "entregador" já digitou na maquininha (null = não está digitando). */
+  const [typing, setTyping] = useState<string | null>(null);
 
   // comemora quando o status muda para "entregue" com a página aberta
   const prevStatus = useRef(order?.status);
@@ -104,10 +107,31 @@ export default function OrderTracking() {
   useEffect(() => {
     if (!simulate || !order) return;
     if (order.status === 'entregue') return setSimulate(false);
+    if (typing !== null) return;
     const delay = order.status === 'pronto' ? (order.location.mode === 'delivery' ? Math.max(0, RIDE_MS - (Date.now() - order.updatedAt)) + 400 : 4000) : SIM_DELAY[order.status]!;
-    const t = setTimeout(() => advanceOrder(order.id), delay);
+    const needsCode = order.status === 'pronto' && !!order.deliveryCode;
+    const t = setTimeout(() => (needsCode ? setTyping('') : advanceOrder(order.id)), delay);
     return () => clearTimeout(t);
-  }, [simulate, order, advanceOrder]);
+  }, [simulate, order, advanceOrder, typing]);
+
+  // simulação: o entregador digita o código, um dígito por vez, e conclui a entrega
+  useEffect(() => {
+    if (typing === null || !order?.deliveryCode) return;
+    if (typing.length < 4) {
+      const t = setTimeout(() => setTyping(order.deliveryCode!.slice(0, typing.length + 1)), typing ? 420 : 900);
+      return () => clearTimeout(t);
+    }
+    const t = setTimeout(() => {
+      deliverOrder(order.id, typing);
+      setTyping(null);
+    }, 700);
+    return () => clearTimeout(t);
+  }, [typing, order, deliverOrder]);
+
+  // parar a simulação no meio da digitação cancela a digitação
+  useEffect(() => {
+    if (!simulate) setTyping(null);
+  }, [simulate]);
 
   const courier = useMemo(() => courierStateFor(order), [order]);
 
@@ -227,6 +251,39 @@ export default function OrderTracking() {
               ))}
             </div>
           </section>
+
+          {/* Código de entrega */}
+          {isDelivery && order.deliveryCode && order.status === 'pronto' && (
+            <section className="track-pop rounded-2xl bg-zinc-900 p-5 text-white shadow-sm">
+              <div className="flex items-start gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-yellow-400 text-zinc-900">
+                  <KeyRound size={20} />
+                </span>
+                <div className="min-w-0">
+                  <p className="font-bold">Código de entrega</p>
+                  <p className="text-xs text-zinc-400">
+                    {typing !== null ? 'O entregador está digitando o código…' : 'Informe ao entregador quando ele chegar. Não compartilhe antes.'}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 flex justify-center gap-2.5" aria-label={`Código ${order.deliveryCode.split('').join(' ')}`}>
+                {order.deliveryCode.split('').map((d, i) => {
+                  const typed = typing !== null && i < typing.length;
+                  return (
+                    <span
+                      key={`${i}-${typed}`}
+                      className={`grid h-14 w-12 place-items-center rounded-xl text-2xl font-extrabold ${
+                        typing === null ? 'bg-white text-zinc-900' : typed ? 'code-pop bg-yellow-400 text-zinc-900' : 'bg-zinc-800 text-zinc-500 ring-1 ring-zinc-700'
+                      }`}
+                    >
+                      {d}
+                    </span>
+                  );
+                })}
+              </div>
+              {typing?.length === 4 && <p className="code-pop mt-3 text-center text-sm font-bold text-yellow-400">Código conferido! ✓</p>}
+            </section>
+          )}
 
           {/* Entregador */}
           {isDelivery && order.status !== 'pendente' && (

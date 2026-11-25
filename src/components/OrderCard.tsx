@@ -1,7 +1,8 @@
-import { Armchair, ArrowRight, Banknote, Bike, Check, Clock, CreditCard, Map, MessageCircle, MessageSquareText, Phone, QrCode, Star, Ticket, User, Zap } from 'lucide-react';
+import { Armchair, ArrowRight, Banknote, Bike, Check, Clock, CreditCard, KeyRound, Map, MessageCircle, MessageSquareText, Phone, QrCode, Star, Ticket, User, Zap } from 'lucide-react';
 import { useState } from 'react';
 import type { Order } from '../types';
 import { NEXT_ACTION_LABEL, formatPayment, formatPrice, formatTime, minutesSince } from '../utils/format';
+import { DeliveryCodeModal } from './DeliveryCode';
 import DeliveryMapModal from './DeliveryMapModal';
 import { Button } from './ui';
 
@@ -11,10 +12,14 @@ interface Props {
   order: Order;
   onAdvance: () => void;
   onMarkPaid: () => void;
+  /** Conclui a entrega conferindo o código; devolve false se o código estiver errado. */
+  onDeliver: (code: string) => boolean;
 }
 
-export default function OrderCard({ order, onAdvance, onMarkPaid }: Props) {
+export default function OrderCard({ order, onAdvance, onMarkPaid, onDeliver }: Props) {
   const [showMap, setShowMap] = useState(false);
+  const [askCode, setAskCode] = useState(false);
+  const needsCode = order.status === 'pronto' && !!order.deliveryCode;
   const isDelivery = order.location.mode === 'delivery';
   // na entrega, "pronto" significa que o entregador saiu com o pedido
   const action = isDelivery && order.status === 'preparo' ? 'Saiu para entrega' : NEXT_ACTION_LABEL[order.status];
@@ -141,11 +146,13 @@ export default function OrderCard({ order, onAdvance, onMarkPaid }: Props) {
           )}
         </div>
         {action && (
-          <Button size="sm" onClick={onAdvance}>
-            {action} <ArrowRight size={14} />
+          <Button size="sm" onClick={needsCode ? () => setAskCode(true) : onAdvance}>
+            {needsCode && <KeyRound size={14} />}
+            {action} {!needsCode && <ArrowRight size={14} />}
           </Button>
         )}
       </footer>
+      {askCode && <DeliveryCodeModal orderNumber={order.number} customerName={order.customerName} onConfirm={onDeliver} onClose={() => setAskCode(false)} />}
       {showMap && <DeliveryMapModal order={order} onClose={() => setShowMap(false)} />}
     </article>
   );

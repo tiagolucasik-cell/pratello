@@ -239,6 +239,20 @@ body {
   100% { scale: 1; rotate: 0deg; }
 }
 
+/* ---------- Código de entrega ---------- */
+.code-shake {
+  animation: code-shake 480ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+@keyframes code-shake {
+  10%, 90% { translate: -2px 0; }
+  20%, 80% { translate: 4px 0; }
+  30%, 50%, 70% { translate: -8px 0; }
+  40%, 60% { translate: 8px 0; }
+}
+.code-pop {
+  animation: track-pop 300ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
 /* ---------- Rastreio ---------- */
 .track-pop {
   animation: track-pop 450ms cubic-bezier(0.34, 1.56, 0.64, 1) both;

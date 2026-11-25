@@ -15,7 +15,7 @@ const COLUMN_META: Record<OrderStatus, { icon: typeof Inbox; accent: string }> =
 };
 
 export default function Orders() {
-  const { orders, advanceOrder, markOrderPaid, session, logout } = useApp();
+  const { orders, advanceOrder, deliverOrder, markOrderPaid, session, logout } = useApp();
   const [mobileTab, setMobileTab] = useState<OrderStatus>('pendente');
   const [, setTick] = useState(0);
 
@@ -107,7 +107,7 @@ export default function Orders() {
                   {columns[status].length === 0 ? (
                     <p className="rounded-xl border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-500">Nenhum pedido</p>
                   ) : (
-                    columns[status].map((o) => <OrderCard key={o.id} order={o} onAdvance={() => advanceOrder(o.id)} onMarkPaid={() => markOrderPaid(o.id)} />)
+                    columns[status].map((o) => <OrderCard key={o.id} order={o} onAdvance={() => advanceOrder(o.id)} onMarkPaid={() => markOrderPaid(o.id)} onDeliver={(code) => deliverOrder(o.id, code)} />)
                   )}
                 </div>
               </section>

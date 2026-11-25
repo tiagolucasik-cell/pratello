@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { DELIVERY_FEE, FREE_DELIVERY_FROM, categories, createSeedOrders, seedProducts, seedUsers, visualCategories } from '../data/mockData';
 import type { CartItem, Category, Order, OrderChannel, Payment, Product, ServiceLocation, Session, ShippingId, StaffUser, VisualCategory } from '../types';
 import { computeCheckout, type CheckoutSummary } from '../utils/checkout';
-import { STATUS_FLOW, uid } from '../utils/format';
+import { STATUS_FLOW, newDeliveryCode, uid } from '../utils/format';
 
 /* ---------- Persistência ---------- */
 
@@ -132,6 +132,8 @@ interface AppContextValue {
   placeOrder: (details: CheckoutDetails) => Order | null;
 
   advanceOrder: (orderId: string) => void;
+  /** Confirma a entrega de um delivery conferindo o código do cliente. */
+  deliverOrder: (orderId: string, code: string) => boolean;
   markOrderPaid: (orderId: string) => void;
   rateOrder: (orderId: string, rating: number) => void;
 
@@ -267,6 +269,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         total: summary.total,
         payment: { ...payment, status: payment.method === 'pix' && pixPaid ? 'pago' : 'pendente' },
         status: 'pendente',
+        deliveryCode: location.mode === 'delivery' ? newDeliveryCode() : undefined,
         createdAt: now,
         updatedAt: now,
       };
@@ -284,11 +287,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setOrders((prev) =>
         prev.map((o) => {
           if (o.id !== orderId) return o;
+          // delivery com código só é entregue por deliverOrder
+          if (o.status === 'pronto' && o.deliveryCode) return o;
           const next = STATUS_FLOW[STATUS_FLOW.indexOf(o.status) + 1];
           return next ? { ...o, status: next, updatedAt: Date.now() } : o;
         }),
       ),
     [setOrders],
+  );
+
+  const deliverOrder = useCallback(
+    (orderId: string, code: string) => {
+      const order = orders.find((o) => o.id === orderId);
+      if (!order || order.status !== 'pronto' || (order.deliveryCode && order.deliveryCode !== code.trim())) return false;
+      setOrders((prev) => prev.map((o) => (o.id === orderId && o.status === 'pronto' ? { ...o, status: 'entregue', updatedAt: Date.now() } : o)));
+      return true;
+    },
+    [orders, setOrders],
   );
 
   const rateOrder = useCallback(
@@ -394,6 +409,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     removeFromCart,
     placeOrder,
     advanceOrder,
+    deliverOrder,
     markOrderPaid,
     rateOrder,
     saveProduct,
