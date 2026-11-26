@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
+import HelpChat from './components/HelpChat';
 import ProtectedRoute from './components/ProtectedRoute';
 import WelcomeSplash from './components/WelcomeSplash';
 import { useApp } from './context/AppContext';
@@ -22,6 +23,7 @@ export default function App() {
   return (
     <>
       <WelcomeSplash />
+      <HelpChat />
       <Routes>
         <Route path="/" element={session ? <Navigate to={homeFor(session)} replace /> : <Login />} />
         <Route
